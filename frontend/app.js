@@ -17,6 +17,52 @@ const noticeEl = document.getElementById("notice");
 const userBadgeEl = document.getElementById("userBadge");
 const modalEl = document.getElementById("modal");
 const modalBodyEl = document.getElementById("modalBody");
+const themeToggleEl = document.getElementById("themeToggle");
+
+const themeKey = "campus-market-theme";
+
+function applyTheme(theme) {
+  const root = document.documentElement;
+  if (theme === "dark") {
+    root.setAttribute("data-theme", "dark");
+  } else if (theme === "light") {
+    root.setAttribute("data-theme", "light");
+  } else {
+    root.removeAttribute("data-theme");
+  }
+  const metaTheme = document.querySelector('meta[name="theme-color"]');
+  if (metaTheme) {
+    metaTheme.content = theme === "dark" ? "#0b1120" : "#0d9488";
+  }
+  if (themeToggleEl) {
+    themeToggleEl.textContent = theme === "dark" ? "☀️" : "🌙";
+    themeToggleEl.title = theme === "dark" ? "切换浅色模式" : "切换深色模式";
+    themeToggleEl.setAttribute("aria-label", theme === "dark" ? "切换浅色模式" : "切换深色模式");
+  }
+}
+
+function initTheme() {
+  const stored = localStorage.getItem(themeKey);
+  if (stored === "dark" || stored === "light") {
+    applyTheme(stored);
+  } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    applyTheme("dark");
+  } else {
+    applyTheme("light");
+  }
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme") || "light";
+  const next = current === "dark" ? "light" : "dark";
+  localStorage.setItem(themeKey, next);
+  applyTheme(next);
+}
+
+if (themeToggleEl) {
+  themeToggleEl.addEventListener("click", toggleTheme);
+}
+initTheme();
 
 async function api(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
@@ -781,43 +827,66 @@ async function renderAccount() {
                 <form id="registerForm" class="auth-form auth-form-register">
                   <div class="auth-heading">
                     <h2>创建账号</h2>
-                    <p>选择用户类型，完善校园身份信息</p>
+                    <p>两步完成注册，加入校园交易社区</p>
                   </div>
-                  <div class="auth-fields register">
-                    <label class="auth-field">
-                      <span class="sr-only">学号/工号</span>
-                      <input name="studentNo" placeholder="学号 / 工号" autocomplete="username" required />
-                    </label>
-                    <label class="auth-field">
-                      <span class="sr-only">真实姓名</span>
-                      <input name="realName" placeholder="真实姓名" autocomplete="name" required />
-                    </label>
-                    <label class="auth-field">
-                      <span class="sr-only">昵称</span>
-                      <input name="nickname" placeholder="昵称" required />
-                    </label>
-                    <label class="auth-field">
-                      <span class="sr-only">用户类型</span>
-                      <select name="userType" aria-label="用户类型">${userTypeOptions()}</select>
-                    </label>
-                    <label class="auth-field">
-                      <span class="sr-only">手机号</span>
-                      <input name="phone" placeholder="手机号（可选）" autocomplete="tel" />
-                    </label>
-                    <label class="auth-field">
-                      <span class="sr-only">微信号</span>
-                      <input name="wechat" placeholder="微信号（可选）" />
-                    </label>
-                    <label class="auth-field wide">
-                      <span class="sr-only">密码</span>
-                      <input name="password" type="password" placeholder="密码" autocomplete="new-password" required />
-                    </label>
-                    <label class="auth-field wide">
-                      <span class="sr-only">确认密码</span>
-                      <input name="confirmPassword" type="password" placeholder="确认密码" autocomplete="new-password" required />
-                    </label>
+                  <div class="wizard-steps">
+                    <div class="wizard-step active" data-step="1">
+                      <span class="wizard-dot">1</span>
+                      <span class="wizard-label">身份验证</span>
+                    </div>
+                    <div class="wizard-line"></div>
+                    <div class="wizard-step" data-step="2">
+                      <span class="wizard-dot">2</span>
+                      <span class="wizard-label">完善信息</span>
+                    </div>
                   </div>
-                  <button class="btn auth-submit" type="submit">立即注册</button>
+                  <div class="wizard-panels">
+                    <div class="wizard-panel active" data-panel="1">
+                      <div class="auth-fields">
+                        <label class="auth-field">
+                          <span class="sr-only">用户类型</span>
+                          <select name="userType" aria-label="用户类型">${userTypeOptions()}</select>
+                        </label>
+                        <label class="auth-field">
+                          <span class="sr-only">学号/工号</span>
+                          <input name="studentNo" placeholder="学号 / 工号" autocomplete="username" required />
+                        </label>
+                        <label class="auth-field">
+                          <span class="sr-only">真实姓名</span>
+                          <input name="realName" placeholder="真实姓名" autocomplete="name" required />
+                        </label>
+                      </div>
+                    </div>
+                    <div class="wizard-panel" data-panel="2">
+                      <div class="auth-fields">
+                        <label class="auth-field">
+                          <span class="sr-only">手机号</span>
+                          <input name="phone" placeholder="手机号（可选）" autocomplete="tel" />
+                        </label>
+                        <label class="auth-field">
+                          <span class="sr-only">微信号</span>
+                          <input name="wechat" placeholder="微信号（可选）" />
+                        </label>
+                        <label class="auth-field">
+                          <span class="sr-only">昵称</span>
+                          <input name="nickname" placeholder="昵称" required />
+                        </label>
+                        <label class="auth-field">
+                          <span class="sr-only">密码</span>
+                          <input name="password" type="password" placeholder="密码" autocomplete="new-password" required />
+                        </label>
+                        <label class="auth-field">
+                          <span class="sr-only">确认密码</span>
+                          <input name="confirmPassword" type="password" placeholder="确认密码" autocomplete="new-password" required />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="wizard-actions">
+                    <button class="ghost-btn wizard-back" type="button" style="display:none" onclick="wizardPrev()">上一步</button>
+                    <button class="btn auth-submit wizard-next" type="button" onclick="wizardNext()">下一步</button>
+                    <button class="btn auth-submit wizard-submit" type="submit" style="display:none">完成注册</button>
+                  </div>
                   <p class="auth-switch">已有账号？ <button class="auth-link" type="button" onclick="switchAuthMode('login')">立即登录</button></p>
                 </form>
               `
@@ -837,6 +906,7 @@ async function renderAccount() {
                       <input name="password" type="password" placeholder="密码" autocomplete="current-password" required />
                     </label>
                   </div>
+                  <p id="loginError" class="auth-error" role="alert" aria-live="polite" hidden></p>
                   <button class="btn auth-submit" type="submit">立即登录</button>
                   <p class="auth-switch">还没有账号？ <button class="auth-link" type="button" onclick="switchAuthMode('register')">免费注册</button></p>
                 </form>
@@ -849,12 +919,26 @@ async function renderAccount() {
 
   const loginForm = document.getElementById("loginForm");
   if (loginForm) {
+    const loginErrorEl = document.getElementById("loginError");
+    const loginInputs = loginForm.querySelectorAll("input");
+    function setLoginError(message = "") {
+      loginErrorEl.textContent = message;
+      loginErrorEl.hidden = !message;
+      loginInputs.forEach((input) => {
+        input.setAttribute("aria-invalid", message ? "true" : "false");
+      });
+    }
+
+    loginForm.addEventListener("input", () => setLoginError());
+
     loginForm.addEventListener("submit", async (event) => {
       event.preventDefault();
+      const form = event.currentTarget;
+      setLoginError();
       try {
         const data = await api("/api/auth/login", {
           method: "POST",
-          body: JSON.stringify(formObject(event.currentTarget)),
+          body: JSON.stringify(formObject(form)),
         });
         state.token = data.token;
         state.principal = data.principal;
@@ -863,7 +947,9 @@ async function renderAccount() {
         await loadCommon();
         await switchView(isAdmin() ? "admin" : "items");
       } catch (error) {
-        showNotice(error.message, true);
+        const message = error.message || "账号或密码错误";
+        setLoginError(message);
+        showNotice(message, true);
       }
     });
   }
@@ -872,8 +958,9 @@ async function renderAccount() {
   if (registerForm) {
     registerForm.addEventListener("submit", async (event) => {
       event.preventDefault();
+      const form = event.currentTarget;
       try {
-        const body = formObject(event.currentTarget);
+        const body = formObject(form);
         if (body.password !== body.confirmPassword) {
           showNotice("两次输入的密码不一致", true);
           return;
@@ -883,7 +970,7 @@ async function renderAccount() {
           method: "POST",
           body: JSON.stringify(body),
         });
-        event.currentTarget.reset();
+        form.reset();
         state.authMode = "login";
         await renderAccount();
         showNotice(data.message);
@@ -891,7 +978,54 @@ async function renderAccount() {
         showNotice(error.message, true);
       }
     });
+
+    const userTypeSelect = document.querySelector('[name="userType"]');
+    const studentNoInput = document.querySelector('[name="studentNo"]');
+    if (userTypeSelect && studentNoInput) {
+      function updateStudentNoPlaceholder() {
+        studentNoInput.placeholder = userTypeSelect.value === "教职工" ? "工号" : "学号";
+      }
+      userTypeSelect.addEventListener("change", updateStudentNoPlaceholder);
+      updateStudentNoPlaceholder();
+    }
   }
+}
+
+function wizardGo(step) {
+  const panels = document.querySelectorAll(".wizard-panel");
+  const steps = document.querySelectorAll(".wizard-step");
+  const backBtn = document.querySelector(".wizard-back");
+  const nextBtn = document.querySelector(".wizard-next");
+  const submitBtn = document.querySelector(".wizard-submit");
+
+  panels.forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.panel === String(step));
+  });
+  steps.forEach((s) => {
+    s.classList.toggle("active", s.dataset.step === String(step));
+  });
+
+  const line = document.querySelector(".wizard-line");
+  if (line) line.classList.toggle("done", step === 2);
+
+  if (backBtn) backBtn.style.display = step === 1 ? "none" : "";
+  if (nextBtn) nextBtn.style.display = step === 2 ? "none" : "";
+  if (submitBtn) submitBtn.style.display = step === 2 ? "" : "none";
+}
+
+function wizardNext() {
+  const panel = document.querySelector('.wizard-panel.active');
+  const fields = panel ? panel.querySelectorAll('input[required], select[required]') : [];
+  let valid = true;
+  fields.forEach((field) => {
+    if (!field.reportValidity()) valid = false;
+  });
+  if (!valid) return;
+  wizardGo(2);
+}
+
+function wizardPrev() {
+  wizardGo(1);
 }
 
 async function submitAuth() {
@@ -1134,12 +1268,13 @@ async function renderPublish() {
   if (publishForm) {
     publishForm.addEventListener("submit", async (event) => {
       event.preventDefault();
+      const form = event.currentTarget;
       try {
         const data = await api("/api/items", {
           method: "POST",
-          body: JSON.stringify(formObject(event.currentTarget)),
+          body: JSON.stringify(formObject(form)),
         });
-        event.currentTarget.reset();
+        form.reset();
         showNotice(data.message);
         await loadCommon();
         await loadMyItems();
@@ -1315,7 +1450,7 @@ function orderActionButtons(order) {
   if ((isBuyer || isSeller) && ["待卖家确认", "待面交"].includes(order.orderStatus)) {
     buttons.push(`<button class="ghost-btn" type="button" onclick="orderAction(${order.orderNo}, 'cancel')">取消订单</button>`);
   }
-  if ((isBuyer || isSeller) && order.orderStatus === "交易成功") {
+  if ((isBuyer || isSeller) && order.orderStatus === "交易成功" && !order.reviewedByMe) {
     buttons.push(`<button class="ghost-btn" type="button" onclick="openReview(${order.orderNo})">评价对方</button>`);
   }
   return buttons.join("") || `<span class="muted">暂无可执行操作</span>`;
@@ -1423,12 +1558,13 @@ async function renderWanted() {
   if (wantedForm) {
     wantedForm.addEventListener("submit", async (event) => {
       event.preventDefault();
+      const form = event.currentTarget;
       try {
         const data = await api("/api/wanted", {
           method: "POST",
-          body: JSON.stringify(formObject(event.currentTarget)),
+          body: JSON.stringify(formObject(form)),
         });
-        event.currentTarget.reset();
+        form.reset();
         showNotice(data.message);
         await loadWanted();
       } catch (error) {
@@ -1714,12 +1850,13 @@ async function setUserStatus(userNo, status) {
 
 async function submitCategory(event) {
   event.preventDefault();
+  const form = event.currentTarget;
   try {
     const data = await api("/api/categories", {
       method: "POST",
-      body: JSON.stringify(formObject(event.currentTarget)),
+      body: JSON.stringify(formObject(form)),
     });
-    event.currentTarget.reset();
+    form.reset();
     showNotice(data.message);
     await refreshAdmin();
   } catch (error) {
@@ -1777,12 +1914,13 @@ async function deleteCategory(categoryNo) {
 
 async function submitLocation(event) {
   event.preventDefault();
+  const form = event.currentTarget;
   try {
     const data = await api("/api/locations", {
       method: "POST",
-      body: JSON.stringify(formObject(event.currentTarget)),
+      body: JSON.stringify(formObject(form)),
     });
-    event.currentTarget.reset();
+    form.reset();
     showNotice(data.message);
     await refreshAdmin();
   } catch (error) {
@@ -1919,12 +2057,13 @@ function renderRiskyUsers(users) {
 
 async function submitAnnouncement(event) {
   event.preventDefault();
+  const form = event.currentTarget;
   try {
     const data = await api("/api/announcements", {
       method: "POST",
-      body: JSON.stringify(formObject(event.currentTarget)),
+      body: JSON.stringify(formObject(form)),
     });
-    event.currentTarget.reset();
+    form.reset();
     showNotice(data.message);
     await refreshAdmin();
   } catch (error) {

@@ -3,13 +3,15 @@ from __future__ import annotations
 import hashlib
 import json
 import mimetypes
+import os
 import secrets
-import sqlite3
 from datetime import date, datetime
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
+
+import pyodbc
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -18,6 +20,16 @@ DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "campus_market.db"
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 USER_TYPES = {"学生", "教职工", "校友"}
+
+# SQL Server 连接配置，按实际环境修改
+SQL_SERVER_CONN_STR = os.environ.get(
+    "SQL_SERVER_CONN_STR",
+    "DRIVER={ODBC Driver 17 for SQL Server};"
+    "SERVER=localhost;"
+    "DATABASE=CampusMarket;"
+    "UID=sa;"
+    "PWD=your_password;",
+)
 
 TOKENS: dict[str, dict[str, int | str]] = {}
 
@@ -37,11 +49,92 @@ def hash_password(password: str) -> str:
     return hashlib.sha256(("campus-market:" + password).encode("utf-8")).hexdigest()
 
 
+class DictRow:
+    """让 pyodbc 行支持按列名访问，兼容 sqlite3.Row 的用法。"""
+
+    def __init__(self, columns: list[str], row: tuple):
+        self._columns = columns
+        self._row = row
+
+    def __getitem__(self, key):
+        if isinstance(key, str):
+            try:
+                return self._row[self._columns.index(key)]
+            except ValueError:
+                raise KeyError(key)
+        return self._row[key]
+
+    def __getattr__(self, name: str):
+        if name in self._columns:
+            return self._row[self._columns.index(name)]
+        raise AttributeError(name)
+
+    def keys(self):
+        return self._columns
+
+    def __iter__(self):
+        return iter(self._row)
+
+    def __len__(self):
+        return len(self._row)
+
+
+class DictCursor:
+    """包装 pyodbc Cursor，使 fetchone/fetchall 返回 DictRow。"""
+
+    def __init__(self, cursor: pyodbc.Cursor):
+        self._cursor = cursor
+        self.description = cursor.description
+
+    def execute(self, sql, params=()):
+        self._cursor.execute(sql, params or ())
+        self.description = self._cursor.description
+        return self
+
+    def fetchone(self):
+        row = self._cursor.fetchone()
+        if row is None:
+            return None
+        columns = [desc[0] for desc in self._cursor.description]
+        return DictRow(columns, row)
+
+    def fetchall(self):
+        columns = [desc[0] for desc in self._cursor.description]
+        return [DictRow(columns, row) for row in self._cursor.fetchall()]
+
+    def __getattr__(self, name):
+        return getattr(self._cursor, name)
+
+
+class DictConnection:
+    """包装 pyodbc Connection，使 conn.execute 返回 DictCursor。"""
+
+    def __init__(self, conn: pyodbc.Connection):
+        self._conn = conn
+
+    def execute(self, sql, params=()):
+        cursor = self._conn.cursor()
+        return DictCursor(cursor).execute(sql, params)
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        self._conn.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._conn.close()
+
+
 def connect():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    raw_conn = pyodbc.connect(SQL_SERVER_CONN_STR)
+    return DictConnection(raw_conn)
 
 
 def serialize_db_value(value):
@@ -65,7 +158,7 @@ def rows_to_dicts(rows) -> list[dict]:
 
 
 def is_integrity_error(exc: Exception) -> bool:
-    return isinstance(exc, sqlite3.IntegrityError) or exc.__class__.__name__ == "IntegrityError"
+    return isinstance(exc, pyodbc.IntegrityError) or exc.__class__.__name__ == "IntegrityError"
 
 
 def create_notification(
@@ -1061,18 +1154,11 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
             user = self.require_user(conn)
             rows = conn.execute(
                 """
-                SELECT v.*,
-                       EXISTS (
-                           SELECT 1
-                           FROM Review r
-                           WHERE r.orderNo = v.orderNo
-                             AND r.reviewerNo = ?
-                       ) AS reviewedByMe
-                FROM V_Order_Summary v
-                WHERE v.buyerNo = ? OR v.sellerNo = ?
+                SELECT * FROM V_Order_Summary
+                WHERE buyerNo = ? OR sellerNo = ?
                 ORDER BY createTime DESC, orderNo DESC
                 """,
-                (user["userNo"], user["userNo"], user["userNo"]),
+                (user["userNo"], user["userNo"]),
             ).fetchall()
             return {"orders": rows_to_dicts(rows)}
 

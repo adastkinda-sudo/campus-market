@@ -1,4 +1,32 @@
-data/
+# Python virtual environments
+.venv/
+.venv-*/
+venv/
+env/
+
+# Python cache and test output
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Runtime data
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Editor and OS files
 .DS_Store
+.idea/
+.vscode/
+
+# Local assistant/tool state
+.claude/
