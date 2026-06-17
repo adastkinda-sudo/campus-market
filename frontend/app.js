@@ -8,6 +8,7 @@ const state = {
   unreadCount: 0,
   view: "home",
   authMode: "login",
+  homeCategoryFilter: "",
 };
 
 const viewEl = document.getElementById("view");
@@ -191,78 +192,133 @@ async function switchView(view) {
   if (view === "account") return renderAccount();
 }
 
-function renderHome() {
+async function renderHome() {
+  const latest = await api("/api/items?sort=new").then((data) => data.items.slice(0, 6)).catch(() => []);
+  const categoriesHtml = state.categories.length
+    ? `<section class="category-chips animate-in delay-2">
+        ${state.categories
+          .filter((category) => !category.parentCategoryNo)
+          .slice(0, 8)
+          .map(
+            (category) =>
+              `<button class="chip" type="button" onclick="browseCategory(${category.categoryNo})">
+                ${escapeHtml(category.categoryName)}
+                <span class="count">${category.itemCount || 0}</span>
+              </button>`,
+          )
+          .join("")}
+      </section>`
+    : "";
+
+  const latestHtml = latest.length
+    ? `<section class="band animate-in delay-4">
+        <div class="section-head">
+          <div>
+            <h2>最新上架</h2>
+            <p class="muted">刚刚发布的闲置好物，看看有没有你需要的。</p>
+          </div>
+          <button class="ghost-btn" type="button" onclick="switchView('items')">查看全部</button>
+        </div>
+        <div class="item-grid">${latest.map((item) => itemCardHtml(item)).join("")}</div>
+      </section>`
+    : "";
+
+  const cta = isAdmin()
+    ? `<button class="btn" type="button" onclick="switchView('admin')">进入后台管理</button>
+       <button class="ghost-btn glass-button" type="button" onclick="switchView('items')">查看市场</button>`
+    : isUser()
+    ? `<button class="btn" type="button" onclick="switchView('items')">进入交易市场</button>
+       <button class="ghost-btn glass-button" type="button" onclick="switchView('orders')">查看我的订单</button>`
+    : `<button class="btn" type="button" onclick="switchView('account')">登录 / 注册</button>
+       <button class="ghost-btn glass-button" type="button" onclick="switchView('items')">游客浏览物品</button>`;
+
   viewEl.innerHTML = `
-    <section class="intro-hero">
+    <section class="intro-hero animate-in">
       <div class="intro-copy">
-        <span class="eyebrow">Campus C2C Marketplace</span>
-        <h1>校园二手物品交易系统</h1>
-        <p>面向学生、教职工与校友的校内闲置交易平台。它把发布、浏览、求购、下单锁定、线下面交、评价、举报和后台审核放进一条清晰的校园交易流程里。</p>
-        <div class="intro-actions">
-          ${
-            isAdmin()
-              ? `<button class="btn" type="button" onclick="switchView('admin')">进入后台管理</button>
-                 <button class="ghost-btn glass-button" type="button" onclick="switchView('items')">查看市场</button>`
-              : isUser()
-              ? `<button class="btn" type="button" onclick="switchView('items')">进入交易市场</button>
-                 <button class="ghost-btn glass-button" type="button" onclick="switchView('orders')">查看我的订单</button>`
-              : `<button class="btn" type="button" onclick="switchView('account')">登录 / 注册</button>
-                 <button class="ghost-btn glass-button" type="button" onclick="switchView('items')">游客浏览物品</button>`
-          }
+        <span class="eyebrow animate-in delay-1">Campus C2C Marketplace</span>
+        <h1 class="animate-in delay-2">让校园闲置<br />重新流动起来</h1>
+        <p class="animate-in delay-3">面向学生、教职工与校友的校内交易平台。发布、浏览、求购、下单锁定、线下面交、评价与风控，全流程一站式完成。</p>
+        <div class="intro-actions animate-in delay-4">
+          ${cta}
         </div>
       </div>
 
-      <div class="intro-stage" aria-label="系统功能预览">
-        <div class="device-panel main-device">
-          <div class="device-top">
-            <span></span><span></span><span></span>
-          </div>
-          <div class="device-content">
-            <img src="/assets/laptop.svg" alt="数码商品展示" />
-            <div>
-              <strong>罗技无线键鼠套装</strong>
-              <p>九成新 · 校内面交 · 信用 92</p>
+      <div class="intro-stage animate-in delay-3" aria-label="系统功能预览">
+        <div class="preview-stage">
+          <div class="preview-orbit"></div>
+          <div class="preview-window">
+            <div class="preview-window-top">
+              <span></span><span></span><span></span>
             </div>
-            <span class="price">¥55</span>
+            <div class="preview-window-content">
+              <div class="preview-row">
+                <div class="preview-thumb">🖱️</div>
+                <div class="preview-row-body">
+                  <div class="preview-row-title">罗技无线键鼠套装</div>
+                  <div class="preview-row-meta">九成新 · 校内面交 · 信用 92</div>
+                </div>
+                <span class="preview-price">¥55</span>
+              </div>
+              <div class="preview-row">
+                <div class="preview-thumb">📚</div>
+                <div class="preview-row-body">
+                  <div class="preview-row-title">数据库系统概论</div>
+                  <div class="preview-row-meta">八成新 · 图书馆交易 · 信用 88</div>
+                </div>
+                <span class="preview-price">¥18</span>
+              </div>
+            </div>
           </div>
-        </div>
-        <div class="floating-card card-book">
-          <img src="/assets/book.svg" alt="教材商品展示" />
-          <div><strong>教材循环</strong><span>课程资料快速转让</span></div>
-        </div>
-        <div class="floating-card card-bike">
-          <img src="/assets/bicycle.svg" alt="代步工具展示" />
-          <div><strong>订单锁定</strong><span>避免多人同时下单</span></div>
+          <div class="preview-card">
+            <div class="preview-card-icon">🚲</div>
+            <div><strong>代步工具</strong><span>快速转让自行车、滑板</span></div>
+          </div>
+          <div class="preview-card">
+            <div class="preview-card-icon">🔒</div>
+            <div><strong>订单锁定</strong><span>避免多人同时下单</span></div>
+          </div>
+          <div class="preview-dot"></div>
+          <div class="preview-dot"></div>
+          <div class="preview-dot"></div>
         </div>
       </div>
     </section>
 
+    ${announcementsBannerHtml()}
+
+    ${categoriesHtml}
+
+    ${latestHtml}
+
     <section class="intro-stats">
-      <div class="glass-stat"><span>平台物品</span><strong>${state.dashboard?.itemCount ?? 0}</strong></div>
-      <div class="glass-stat"><span>正在出售</span><strong>${state.dashboard?.onSaleCount ?? 0}</strong></div>
-      <div class="glass-stat"><span>注册用户</span><strong>${state.dashboard?.userCount ?? 0}</strong></div>
-      <div class="glass-stat"><span>成功订单</span><strong>${state.dashboard?.successOrderCount ?? 0}</strong></div>
+      <div class="glass-stat animate-in delay-2"><span>平台物品</span><strong>${state.dashboard?.itemCount ?? 0}</strong></div>
+      <div class="glass-stat animate-in delay-3"><span>正在出售</span><strong>${state.dashboard?.onSaleCount ?? 0}</strong></div>
+      <div class="glass-stat animate-in delay-4"><span>注册用户</span><strong>${state.dashboard?.userCount ?? 0}</strong></div>
+      <div class="glass-stat animate-in delay-5"><span>成功订单</span><strong>${state.dashboard?.successOrderCount ?? 0}</strong></div>
     </section>
 
     <section class="intro-grid">
-      <article class="intro-feature">
+      <article class="intro-feature animate-in delay-2">
+        <div class="feature-icon">🎓</div>
         <span>01</span>
         <h2>校内身份认证</h2>
         <p>注册用户可选择学生、教职工或校友身份，管理员审核后才能发布物品、提交订单和发布求购。</p>
       </article>
-      <article class="intro-feature">
+      <article class="intro-feature animate-in delay-3">
+        <div class="feature-icon">🤝</div>
         <span>02</span>
         <h2>线上锁定，线下面交</h2>
         <p>买家提交订单后物品自动进入交易中，卖家确认后双方按约定地点完成校园面交。</p>
       </article>
-      <article class="intro-feature">
+      <article class="intro-feature animate-in delay-4">
+        <div class="feature-icon">🛡️</div>
         <span>03</span>
         <h2>评价、通知与风控</h2>
         <p>交易成功后互评会影响信用积分；留言、订单和举报处理都会进入通知中心。</p>
       </article>
     </section>
 
-    <section class="intro-gallery">
+    <section class="intro-gallery animate-in delay-3">
       <div class="section-head">
         <div>
           <h2>典型交易场景</h2>
@@ -271,10 +327,35 @@ function renderHome() {
         <button class="ghost-btn" type="button" onclick="switchView('items')">查看全部</button>
       </div>
       <div class="gallery-strip">
-        <img src="/assets/book.svg" alt="书籍教材" />
-        <img src="/assets/laptop.svg" alt="数码产品" />
-        <img src="/assets/kettle.svg" alt="生活用品" />
-        <img src="/assets/bicycle.svg" alt="代步工具" />
+        <div class="gallery-item animate-in delay-2"><div class="gallery-placeholder">📚</div></div>
+        <div class="gallery-item animate-in delay-3"><div class="gallery-placeholder">💻</div></div>
+        <div class="gallery-item animate-in delay-4"><div class="gallery-placeholder">🏠</div></div>
+        <div class="gallery-item animate-in delay-5"><div class="gallery-placeholder">🚲</div></div>
+      </div>
+    </section>
+  `;
+}
+
+async function browseCategory(categoryNo) {
+  state.homeCategoryFilter = categoryNo;
+  await switchView("items");
+  const form = document.getElementById("searchForm");
+  if (form) {
+    form.categoryNo.value = categoryNo;
+    await loadItems();
+  }
+}
+
+function announcementsBannerHtml() {
+  if (!state.announcements.length) return "";
+  const latest = state.announcements[0];
+  return `
+    <section class="band slim announcement-banner animate-in delay-2" onclick="switchView('items')" role="button" tabindex="0">
+      <div class="announcement-banner-inner">
+        <span class="announcement-tag">公告</span>
+        <strong>${escapeHtml(latest.title)}</strong>
+        <span class="muted">${escapeHtml(latest.content)}</span>
+        <span class="muted time">${shortTime(latest.publishTime)}</span>
       </div>
     </section>
   `;
@@ -308,8 +389,17 @@ function announcementsHtml() {
 }
 
 async function renderItems() {
+  const initialCategory = state.homeCategoryFilter || "";
+  state.homeCategoryFilter = "";
   viewEl.innerHTML = `
-    <section class="stats">
+    <section class="page-header animate-in">
+      <div>
+        <h1>在售物品</h1>
+        <p class="muted">支持游客浏览，登录认证后可下单、留言和举报。</p>
+      </div>
+    </section>
+
+    <section class="stats animate-in delay-1">
       <div class="stat"><span class="muted">平台物品</span><strong>${state.dashboard?.itemCount ?? 0}</strong></div>
       <div class="stat"><span class="muted">正在出售</span><strong>${state.dashboard?.onSaleCount ?? 0}</strong></div>
       <div class="stat"><span class="muted">成功订单</span><strong>${state.dashboard?.successOrderCount ?? 0}</strong></div>
@@ -318,19 +408,13 @@ async function renderItems() {
 
     ${announcementsHtml()}
 
-    <section class="band">
-      <div class="section-head">
-        <div>
-          <h1>在售物品</h1>
-          <p class="muted">支持游客浏览，登录认证后可下单、留言和举报。</p>
-        </div>
-      </div>
+    <section class="band animate-in delay-2">
       <form id="searchForm" class="toolbar">
         <label>关键词
           <input name="keyword" placeholder="书名、型号、卖家昵称" />
         </label>
         <label>分类
-          <select name="categoryNo">${categoryOptions("", true)}</select>
+          <select name="categoryNo">${categoryOptions(initialCategory, true)}</select>
         </label>
         <label>排序
           <select name="sort">
@@ -637,14 +721,14 @@ async function renderAccount() {
   if (state.principal) {
     const userPanel = isUser()
       ? `
-        <section class="band">
-          <div class="section-head">
-            <div>
-              <h2>${escapeHtml(state.principal.nickname)}</h2>
-              <p class="muted">${escapeHtml(state.principal.realName)} · ${escapeHtml(state.principal.userType || "学生")} · ${escapeHtml(state.principal.studentNo)}</p>
-            </div>
-            <span class="pill ${state.principal.authStatus === "已认证" ? "green" : "gold"}">${escapeHtml(state.principal.authStatus)}</span>
+        <section class="page-header animate-in">
+          <div>
+            <h1>${escapeHtml(state.principal.nickname)}</h1>
+            <p class="muted">${escapeHtml(state.principal.realName)} · ${escapeHtml(state.principal.userType || "学生")} · ${escapeHtml(state.principal.studentNo)}</p>
           </div>
+          <span class="pill ${state.principal.authStatus === "已认证" ? "green" : "gold"}">${escapeHtml(state.principal.authStatus)}</span>
+        </section>
+        <section class="band animate-in delay-1">
           <div class="stats">
             <div class="stat"><span class="muted">信用积分</span><strong>${state.principal.creditScore}</strong></div>
             <div class="stat"><span class="muted">账号状态</span><strong>${escapeHtml(state.principal.status)}</strong></div>
@@ -656,13 +740,15 @@ async function renderAccount() {
           }
         </section>`
       : `
-        <section class="band">
-          <h2>管理员账号</h2>
-          <p class="muted">${escapeHtml(state.principal.username)}</p>
+        <section class="page-header animate-in">
+          <div>
+            <h1>管理员账号</h1>
+            <p class="muted">${escapeHtml(state.principal.username)}</p>
+          </div>
         </section>`;
     viewEl.innerHTML = `
       ${userPanel}
-      <section class="band slim">
+      <section class="band slim animate-in delay-2">
         <button class="danger-btn" type="button" onclick="logout()">退出登录</button>
       </section>
     `;
@@ -673,7 +759,7 @@ async function renderAccount() {
 
   viewEl.innerHTML = `
     <section class="auth-stage">
-      <div class="auth-card">
+      <div class="auth-card animate-in">
         <aside class="auth-brand-panel">
           <div>
             <div class="auth-logo">CampusMarket</div>
@@ -831,25 +917,35 @@ async function logout() {
 
 async function renderFavorites() {
   if (!isUser()) {
-    viewEl.innerHTML = `<div class="empty">请先登录用户账号</div>`;
+    viewEl.innerHTML = `
+      <section class="empty-state animate-in">
+        <span class="icon">🔒</span>
+        <strong>需要先登录</strong>
+        <p>登录用户账号后才能查看收藏的物品。</p>
+        <button class="btn" type="button" onclick="switchView('account')">去登录</button>
+      </section>`;
     return;
   }
   viewEl.innerHTML = `
-    <section class="band">
-      <div class="section-head">
-        <div>
-          <h2>我的收藏</h2>
-          <p class="muted">把感兴趣的物品先收藏起来，后续可以快速回到详情或下单。</p>
-        </div>
+    <section class="page-header animate-in">
+      <div>
+        <h1>我的收藏</h1>
+        <p class="muted">把感兴趣的物品先收藏起来，后续可以快速回到详情或下单。</p>
       </div>
+    </section>
+    <section class="band animate-in delay-1">
       <div id="favoritesGrid" class="item-grid"></div>
     </section>
   `;
   const data = await api("/api/favorites");
   const grid = document.getElementById("favoritesGrid");
   if (!data.items.length) {
-    grid.className = "empty";
-    grid.innerHTML = "暂无收藏物品";
+    grid.innerHTML = `
+      <div class="empty-state">
+        <span class="icon">⭐</span>
+        <strong>暂无收藏</strong>
+        <p>在浏览物品时点击收藏，即可在这里查看。</p>
+      </div>`;
     return;
   }
   grid.className = "item-grid";
@@ -858,18 +954,24 @@ async function renderFavorites() {
 
 async function renderNotifications() {
   if (!isUser()) {
-    viewEl.innerHTML = `<div class="empty">请先登录用户账号</div>`;
+    viewEl.innerHTML = `
+      <section class="empty-state animate-in">
+        <span class="icon">🔒</span>
+        <strong>需要先登录</strong>
+        <p>登录用户账号后才能查看通知中心。</p>
+        <button class="btn" type="button" onclick="switchView('account')">去登录</button>
+      </section>`;
     return;
   }
   viewEl.innerHTML = `
-    <section class="band">
-      <div class="section-head">
-        <div>
-          <h2>通知中心</h2>
-          <p class="muted">订单、留言、评价、认证审核和举报处理结果都会在这里汇总。</p>
-        </div>
-        <button class="ghost-btn" type="button" onclick="markAllNotificationsRead()">全部已读</button>
+    <section class="page-header animate-in">
+      <div>
+        <h1>通知中心</h1>
+        <p class="muted">订单、留言、评价、认证审核和举报处理结果都会在这里汇总。</p>
       </div>
+      <button class="ghost-btn" type="button" onclick="markAllNotificationsRead()">全部已读</button>
+    </section>
+    <section class="band animate-in delay-1">
       <div id="notificationsList" class="table-list"></div>
     </section>
   `;
@@ -882,7 +984,12 @@ async function loadNotifications() {
   renderNav();
   const list = document.getElementById("notificationsList");
   if (!data.notifications.length) {
-    list.innerHTML = `<div class="empty">暂无通知</div>`;
+    list.innerHTML = `
+      <div class="empty-state">
+        <span class="icon">📭</span>
+        <strong>暂无通知</strong>
+        <p>有新的订单、留言或审核结果时会自动出现在这里。</p>
+      </div>`;
     return;
   }
   list.innerHTML = data.notifications
@@ -952,19 +1059,29 @@ async function markAllNotificationsRead() {
 
 async function renderPublish() {
   if (!isUser()) {
-    viewEl.innerHTML = `<div class="empty">请先登录用户账号</div>`;
+    viewEl.innerHTML = `
+      <section class="empty-state animate-in">
+        <span class="icon">🔒</span>
+        <strong>需要先登录</strong>
+        <p>登录用户账号后才能发布闲置物品。</p>
+        <button class="btn" type="button" onclick="switchView('account')">去登录</button>
+      </section>`;
     return;
   }
 
   viewEl.innerHTML = `
+    <section class="page-header animate-in">
+      <div>
+        <h1>发布管理</h1>
+        <p class="muted">认证用户且信用积分不低于 60 才能发布闲置。</p>
+      </div>
+      <span class="pill ${canTrade() ? "green" : "gold"}">${canTrade() ? "可发布" : "受限"}</span>
+    </section>
+
     <section class="split">
-      <div class="band">
+      <div class="band animate-in delay-1">
         <div class="section-head">
-          <div>
-            <h2>发布闲置物品</h2>
-            <p class="muted">认证用户且信用积分不低于 60 才能发布。</p>
-          </div>
-          <span class="pill ${canTrade() ? "green" : "gold"}">${canTrade() ? "可发布" : "受限"}</span>
+          <h2>发布闲置物品</h2>
         </div>
         ${
           canTrade()
@@ -1000,10 +1117,14 @@ async function renderPublish() {
                 <button class="btn" type="submit">发布物品</button>
               </form>
             `
-            : `<div class="empty">请先完成校园认证，或等待信用积分恢复到 60 以上</div>`
+            : `<div class="empty-state">
+                <span class="icon">🛡️</span>
+                <strong>发布受限</strong>
+                <p>请先完成校园认证，或等待信用积分恢复到 60 以上。</p>
+              </div>`
         }
       </div>
-      <div class="band">
+      <div class="band animate-in delay-2">
         <div class="section-head"><h2>我的发布</h2></div>
         <div id="myItems" class="table-list"></div>
       </div>
@@ -1121,17 +1242,23 @@ async function deleteItem(itemNo) {
 
 async function renderOrders() {
   if (!isUser()) {
-    viewEl.innerHTML = `<div class="empty">请先登录用户账号</div>`;
+    viewEl.innerHTML = `
+      <section class="empty-state animate-in">
+        <span class="icon">🔒</span>
+        <strong>需要先登录</strong>
+        <p>登录用户账号后才能查看订单。</p>
+        <button class="btn" type="button" onclick="switchView('account')">去登录</button>
+      </section>`;
     return;
   }
   viewEl.innerHTML = `
-    <section class="band">
-      <div class="section-head">
-        <div>
-          <h2>我的订单</h2>
-          <p class="muted">买家提交订单后物品进入“交易中”，取消恢复“在售”，确认收货后变为“已售出”。</p>
-        </div>
+    <section class="page-header animate-in">
+      <div>
+        <h1>我的订单</h1>
+        <p class="muted">买家提交订单后物品进入“交易中”，取消恢复“在售”，确认收货后变为“已售出”。</p>
       </div>
+    </section>
+    <section class="band animate-in delay-1">
       <div id="ordersList" class="table-list"></div>
     </section>
   `;
@@ -1250,17 +1377,19 @@ function openReview(orderNo) {
 
 async function renderWanted() {
   viewEl.innerHTML = `
+    <section class="page-header animate-in">
+      <div>
+        <h1>求购广场</h1>
+        <p class="muted">买家可发布求购需求，卖家可据此联系或发布对应物品。</p>
+      </div>
+    </section>
+
     <section class="split">
-      <div class="band">
-        <div class="section-head">
-          <div>
-            <h2>求购广场</h2>
-            <p class="muted">买家可发布求购需求，卖家可据此联系或发布对应物品。</p>
-          </div>
-        </div>
+      <div class="band animate-in delay-1">
+        <div class="section-head"><h2>求购广场</h2></div>
         <div id="wantedList" class="table-list"></div>
       </div>
-      <div class="band">
+      <div class="band animate-in delay-2">
         <div class="section-head"><h2>发布求购</h2></div>
         ${
           canTrade()
@@ -1281,7 +1410,11 @@ async function renderWanted() {
                 <button class="btn" type="submit">发布求购</button>
               </form>
             `
-            : `<div class="empty">认证用户可发布求购信息</div>`
+            : `<div class="empty-state">
+                <span class="icon">🛡️</span>
+                <strong>发布受限</strong>
+                <p>认证用户可发布求购信息。</p>
+              </div>`
         }
       </div>
     </section>
@@ -1354,29 +1487,42 @@ async function closeWantedItem(wantedNo) {
 
 async function renderAdmin() {
   if (!isAdmin()) {
-    viewEl.innerHTML = `<div class="empty">请使用管理员账号登录</div>`;
+    viewEl.innerHTML = `
+      <section class="empty-state animate-in">
+        <span class="icon">🔒</span>
+        <strong>需要管理员权限</strong>
+        <p>请使用管理员账号登录后访问后台管理。</p>
+        <button class="btn" type="button" onclick="switchView('account')">去登录</button>
+      </section>`;
     return;
   }
   viewEl.innerHTML = `
+    <section class="page-header animate-in">
+      <div>
+        <h1>后台管理</h1>
+        <p class="muted">运营概览、身份审核、用户管理、分类地点维护、举报处理与公告发布。</p>
+      </div>
+    </section>
+
     <section class="admin-grid">
-      <div class="band">
+      <div class="band animate-in delay-1">
         <div class="section-head"><h2>运营概览</h2></div>
         <div id="adminStats" class="stats"></div>
         <div id="adminStatusSummary" class="mini-list"></div>
       </div>
 
-      <div class="band">
+      <div class="band animate-in delay-2">
         <div class="section-head"><h2>身份认证审核</h2></div>
         <div id="authRequests" class="table-list"></div>
       </div>
 
-      <div class="band">
+      <div class="band animate-in delay-3">
         <div class="section-head"><h2>用户管理</h2></div>
         <div id="usersList" class="table-list"></div>
       </div>
 
       <div class="split">
-        <div class="band">
+        <div class="band animate-in delay-2">
           <div class="section-head"><h2>商品分类</h2></div>
           <form id="categoryForm" class="form-grid three">
             <label>分类名称
@@ -1391,7 +1537,7 @@ async function renderAdmin() {
           </form>
           <div id="categoryList" class="mini-list"></div>
         </div>
-        <div class="band">
+        <div class="band animate-in delay-3">
           <div class="section-head"><h2>交易地点</h2></div>
           <form id="locationForm" class="form-grid one">
             <label>地点名称
@@ -1406,17 +1552,17 @@ async function renderAdmin() {
         </div>
       </div>
 
-      <div class="band">
+      <div class="band animate-in delay-4">
         <div class="section-head"><h2>举报与投诉</h2></div>
         <div id="reportsList" class="table-list"></div>
       </div>
 
-      <div class="band">
+      <div class="band animate-in delay-5">
         <div class="section-head"><h2>信誉异常用户</h2></div>
         <div id="riskyUsers" class="table-list"></div>
       </div>
 
-      <div class="band">
+      <div class="band animate-in delay-4">
         <div class="section-head"><h2>公告维护</h2></div>
         <form id="announcementForm" class="form-grid one">
           <label>标题
