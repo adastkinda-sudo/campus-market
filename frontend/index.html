@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>校园二手物品交易系统</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">C2C</span>
+        <div>
+          <strong>校园二手物品交易系统</strong>
+          <span id="userBadge">游客浏览</span>
+        </div>
+      </div>
+      <nav id="nav"></nav>
+    </header>
+
+    <main class="shell">
+      <section id="notice" class="notice" hidden></section>
+      <section id="view" class="view"></section>
+    </main>
+
+    <div id="modal" class="modal" hidden>
+      <div class="modal-panel">
+        <button class="icon-btn modal-close" type="button" aria-label="关闭" onclick="closeModal()">×</button>
+        <div id="modalBody"></div>
+      </div>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
