@@ -107,6 +107,41 @@ function shortTime(value) {
   return String(value).replace("T", " ").slice(0, 16);
 }
 
+function truncateText(value, maxLength = 72) {
+  const text = String(value ?? "").trim();
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength)}...`;
+}
+
+function discountPercent(item) {
+  const original = Number(item.originalPrice || 0);
+  const sell = Number(item.sellPrice || 0);
+  if (!original || sell >= original) return 0;
+  return Math.max(1, Math.round((1 - sell / original) * 100));
+}
+
+function originalPriceHtml(item) {
+  return discountPercent(item) ? `<span class="original-price">${money(item.originalPrice)}</span>` : "";
+}
+
+function discountBadgeHtml(item) {
+  const discount = discountPercent(item);
+  return discount ? `<span class="discount-badge">省 ${discount}%</span>` : "";
+}
+
+function uniqueItems(...groups) {
+  const seen = new Set();
+  const result = [];
+  for (const group of groups) {
+    for (const item of group || []) {
+      if (!item || seen.has(item.itemNo)) continue;
+      seen.add(item.itemNo);
+      result.push(item);
+    }
+  }
+  return result;
+}
+
 function categoryLabel(category) {
   return category.parentCategoryName
     ? `${category.parentCategoryName} / ${category.categoryName}`
@@ -239,7 +274,21 @@ async function switchView(view) {
 }
 
 async function renderHome() {
-  const latest = await api("/api/items?sort=new").then((data) => data.items.slice(0, 6)).catch(() => []);
+  const [latestData, hotData] = await Promise.all([
+    api("/api/items?sort=new").catch(() => ({ items: [] })),
+    api("/api/items?sort=hot").catch(() => ({ items: [] })),
+  ]);
+  const allLatest = latestData.items || [];
+  const latest = allLatest.slice(0, 8);
+  const hotItems = uniqueItems(hotData.items || [], allLatest).slice(0, 4);
+  const dealItems = [...allLatest]
+    .sort((a, b) => discountPercent(b) - discountPercent(a) || Number(a.sellPrice || 0) - Number(b.sellPrice || 0))
+    .slice(0, 4);
+  const featuredItems = uniqueItems(latest, hotItems).slice(0, 2);
+  const featuredItemNos = new Set(featuredItems.map((item) => item.itemNo));
+  const showcaseHotItems = uniqueItems(hotItems, allLatest).filter((item) => !featuredItemNos.has(item.itemNo)).slice(0, 2);
+  const showcaseDealItems = uniqueItems(dealItems, allLatest).filter((item) => !featuredItemNos.has(item.itemNo)).slice(0, 2);
+  const previewItems = uniqueItems(hotItems, latest).slice(0, 3);
   const categoriesHtml = state.categories.length
     ? `<section class="category-chips animate-in delay-2">
         ${state.categories
@@ -260,8 +309,8 @@ async function renderHome() {
     ? `<section class="band animate-in delay-4">
         <div class="section-head">
           <div>
-            <h2>最新上架</h2>
-            <p class="muted">刚刚发布的闲置好物，看看有没有你需要的。</p>
+            <h2>更多在售好物</h2>
+            <p class="muted">把商品直接铺出来，优先让用户看到价格、成色、卖家信用和操作入口。</p>
           </div>
           <button class="ghost-btn" type="button" onclick="switchView('items')">查看全部</button>
         </div>
@@ -297,22 +346,7 @@ async function renderHome() {
               <span></span><span></span><span></span>
             </div>
             <div class="preview-window-content">
-              <div class="preview-row">
-                <div class="preview-thumb">🖱️</div>
-                <div class="preview-row-body">
-                  <div class="preview-row-title">罗技无线键鼠套装</div>
-                  <div class="preview-row-meta">九成新 · 校内面交 · 信用 92</div>
-                </div>
-                <span class="preview-price">¥55</span>
-              </div>
-              <div class="preview-row">
-                <div class="preview-thumb">📚</div>
-                <div class="preview-row-body">
-                  <div class="preview-row-title">数据库系统概论</div>
-                  <div class="preview-row-meta">八成新 · 图书馆交易 · 信用 88</div>
-                </div>
-                <span class="preview-price">¥18</span>
-              </div>
+              ${previewItems.length ? previewItems.map(productPreviewRowHtml).join("") : `<div class="preview-empty">暂无在售商品</div>`}
             </div>
           </div>
           <div class="preview-card">
@@ -333,6 +367,8 @@ async function renderHome() {
     ${announcementsBannerHtml()}
 
     ${categoriesHtml}
+
+    ${productShowcaseHtml(featuredItems, showcaseHotItems, showcaseDealItems)}
 
     ${latestHtml}
 
@@ -364,19 +400,141 @@ async function renderHome() {
       </article>
     </section>
 
+    ${productGalleryHtml(latest)}
+  `;
+}
+
+function productPreviewRowHtml(item) {
+  return `
+    <button class="preview-row" type="button" onclick="openItemDetail(${item.itemNo})">
+      <div class="preview-thumb">
+        <img src="${escapeHtml(item.imageUrl || "/assets/kettle.svg")}" alt="" />
+      </div>
+      <div class="preview-row-body">
+        <div class="preview-row-title">${escapeHtml(item.title)}</div>
+        <div class="preview-row-meta">${escapeHtml(item.condition)} · ${escapeHtml(item.categoryName)} · 信用 ${item.creditScore}</div>
+      </div>
+      <span class="preview-price">${money(item.sellPrice)}</span>
+    </button>
+  `;
+}
+
+function productShowcaseHtml(featuredItems, hotItems, dealItems) {
+  if (!featuredItems.length) return "";
+  return `
+    <section class="product-showcase animate-in delay-3">
+      <div class="section-head">
+        <div>
+          <h2>商品精选展示</h2>
+          <p class="muted">保留重点商品，同时用少量热门和低价商品补足浏览入口。</p>
+        </div>
+        <button class="ghost-btn" type="button" onclick="switchView('items')">进入市场</button>
+      </div>
+      <div class="product-showcase-layout">
+        <div class="featured-product-stack">
+          ${featuredItems.map((item, index) => featuredProductHtml(item, index ? "精选好物" : "重点推荐")).join("")}
+        </div>
+        <div class="product-side-panels">
+          <article class="showcase-panel">
+            <div class="panel-heading">
+              <span>热门关注</span>
+              <strong>${hotItems.length}</strong>
+            </div>
+            <div class="mini-product-list">${productMiniListHtml(hotItems, "暂无热门商品")}</div>
+          </article>
+          <article class="showcase-panel">
+            <div class="panel-heading">
+              <span>实惠专区</span>
+              <strong>${dealItems.length}</strong>
+            </div>
+            <div class="mini-product-list">${productMiniListHtml(dealItems, "暂无折扣商品")}</div>
+          </article>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function featuredProductHtml(item, badgeText = "重点推荐") {
+  return `
+    <article class="featured-product">
+      <div class="featured-product-media">
+        <img src="${escapeHtml(item.imageUrl || "/assets/kettle.svg")}" alt="${escapeHtml(item.title)}" />
+        <span class="featured-badge">${escapeHtml(badgeText)}</span>
+      </div>
+      <div class="featured-product-body">
+        <span class="eyebrow">Featured Item</span>
+        <h2>${escapeHtml(item.title)}</h2>
+        <p>${escapeHtml(truncateText(item.description, 92))}</p>
+        <div class="featured-price-row">
+          <span class="price">${money(item.sellPrice)}</span>
+          ${originalPriceHtml(item)}
+          ${discountBadgeHtml(item)}
+        </div>
+        <div class="meta">
+          <span class="pill green">${escapeHtml(item.status)}</span>
+          <span class="pill">${escapeHtml(item.condition)}</span>
+          <span class="pill">${escapeHtml(item.categoryName)}</span>
+          <span class="pill gold">信用 ${item.creditScore}</span>
+        </div>
+        <div class="product-metrics">
+          <span>浏览 ${item.viewCount || 0}</span>
+          <span>收藏 ${item.favoriteCount || 0}</span>
+          <span>${escapeHtml(item.sellerName)}</span>
+        </div>
+        <div class="actions">
+          <button class="btn" type="button" onclick="openItemDetail(${item.itemNo})">查看详情</button>
+          <button class="ghost-btn" type="button" onclick="browseCategory(${item.categoryNo})">看同类商品</button>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+function productMiniListHtml(items, emptyText) {
+  if (!items.length) return `<div class="empty mini-empty">${escapeHtml(emptyText)}</div>`;
+  return items
+    .map(
+      (item) => `
+        <button class="mini-product" type="button" onclick="openItemDetail(${item.itemNo})">
+          <img src="${escapeHtml(item.imageUrl || "/assets/kettle.svg")}" alt="" />
+          <span class="mini-product-main">
+            <strong>${escapeHtml(item.title)}</strong>
+            <span>${escapeHtml(item.condition)} · ${escapeHtml(item.categoryName)}</span>
+          </span>
+          <span class="mini-product-price">${money(item.sellPrice)}</span>
+        </button>
+      `,
+    )
+    .join("");
+}
+
+function productGalleryHtml(items) {
+  const galleryItems = items.slice(0, 4);
+  if (!galleryItems.length) return "";
+  return `
     <section class="intro-gallery animate-in delay-3">
       <div class="section-head">
         <div>
-          <h2>典型交易场景</h2>
-          <p class="muted">教材、数码、生活用品和代步工具都可以在同一套流程里完成管理。</p>
+          <h2>商品橱窗</h2>
+          <p class="muted">用图片和价格直接展示当前市场里最容易被点开的商品。</p>
         </div>
         <button class="ghost-btn" type="button" onclick="switchView('items')">查看全部</button>
       </div>
       <div class="gallery-strip">
-        <div class="gallery-item animate-in delay-2"><div class="gallery-placeholder">📚</div></div>
-        <div class="gallery-item animate-in delay-3"><div class="gallery-placeholder">💻</div></div>
-        <div class="gallery-item animate-in delay-4"><div class="gallery-placeholder">🏠</div></div>
-        <div class="gallery-item animate-in delay-5"><div class="gallery-placeholder">🚲</div></div>
+        ${galleryItems
+          .map(
+            (item, index) => `
+              <button class="gallery-item animate-in delay-${Math.min(index + 2, 5)}" type="button" onclick="openItemDetail(${item.itemNo})">
+                <img src="${escapeHtml(item.imageUrl || "/assets/kettle.svg")}" alt="${escapeHtml(item.title)}" />
+                <span class="gallery-caption">
+                  <strong>${escapeHtml(item.title)}</strong>
+                  <span>${money(item.sellPrice)} · ${escapeHtml(item.condition)}</span>
+                </span>
+              </button>
+            `,
+          )
+          .join("")}
       </div>
     </section>
   `;
@@ -519,19 +677,27 @@ function itemCardHtml(item, mine = false) {
     : "";
   return `
     <article class="item-card">
-      <img src="${escapeHtml(item.imageUrl || "/assets/kettle.svg")}" alt="${escapeHtml(item.title)}" />
+      <div class="item-media">
+        <img src="${escapeHtml(item.imageUrl || "/assets/kettle.svg")}" alt="${escapeHtml(item.title)}" />
+        <span class="item-badge">${escapeHtml(item.categoryName)}</span>
+      </div>
       <div class="item-body">
         <div class="item-title">
           <h3>${escapeHtml(item.title)}</h3>
+        </div>
+        <p class="item-desc">${escapeHtml(truncateText(item.description, 58))}</p>
+        <div class="price-line">
           <span class="price">${money(item.sellPrice)}</span>
+          ${originalPriceHtml(item)}
+          ${discountBadgeHtml(item)}
         </div>
         <div class="meta">
           <span class="pill green">${escapeHtml(item.status)}</span>
           <span class="pill">${escapeHtml(item.condition)}</span>
-          <span class="pill">${escapeHtml(item.categoryName)}</span>
+          <span class="pill">浏览 ${item.viewCount || 0}</span>
           <span class="pill gold">信用 ${item.creditScore}</span>
         </div>
-        <div class="muted">${escapeHtml(item.sellerName)} · 浏览 ${item.viewCount}</div>
+        <div class="muted item-seller">${escapeHtml(item.sellerName)} · 收藏 ${item.favoriteCount || 0}</div>
         <div class="actions">
           <button class="ghost-btn" type="button" onclick="openItemDetail(${item.itemNo})">详情</button>
           ${favoriteButton}
@@ -638,7 +804,7 @@ async function openItemDetail(itemNo) {
         }
       </section>
     `;
-    modalEl.hidden = false;
+    showModal("detail");
 
     const orderForm = document.getElementById("orderForm");
     if (orderForm) {
@@ -755,7 +921,13 @@ async function toggleFavorite(itemNo, isFavorite, keepDetailOpen = false) {
 
 function closeModal() {
   modalEl.hidden = true;
+  modalEl.classList.remove("detail-modal");
   modalBodyEl.innerHTML = "";
+}
+
+function showModal(mode = "") {
+  modalEl.classList.toggle("detail-modal", mode === "detail");
+  modalEl.hidden = false;
 }
 
 function switchAuthMode(mode) {
@@ -1331,7 +1503,7 @@ async function openEditItem(itemNo) {
       </form>
     </section>
   `;
-  modalEl.hidden = false;
+  showModal();
   document.getElementById("editItemForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
@@ -1491,7 +1663,7 @@ function openReview(orderNo) {
       </form>
     </section>
   `;
-  modalEl.hidden = false;
+  showModal();
   document.getElementById("reviewForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
