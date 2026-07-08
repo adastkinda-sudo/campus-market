@@ -301,6 +301,21 @@ BEGIN
      WHERE userNo = NEW.revieweeNo;
 END$$
 
+-- ============================================================
+-- 测试存储过程：返回数据库信息
+-- ============================================================
+DROP PROCEDURE IF EXISTS sp_test_ping$$
+
+CREATE PROCEDURE sp_test_ping()
+SELECT
+    'pong' AS message,
+    NOW() AS server_time,
+    DATABASE() AS database_name,
+    (SELECT COUNT(*) FROM `User`) AS user_count,
+    (SELECT COUNT(*) FROM Item) AS item_count,
+    (SELECT COUNT(*) FROM OrderSheet) AS order_count
+$$
+
 DELIMITER ;
 
 CREATE VIEW V_Item_Detail AS

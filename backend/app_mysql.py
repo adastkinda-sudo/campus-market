@@ -242,6 +242,13 @@ sqlite_app.connect = connect
 sqlite_app.init_db = init_db
 sqlite_app.is_integrity_error = is_integrity_error
 sqlite_app.SCHEMA_PATH = SCHEMA_PATH
+sqlite_app.core.connect = connect
+sqlite_app.core.init_db = init_db
+sqlite_app.core.is_integrity_error = is_integrity_error
+sqlite_app.core.SCHEMA_PATH = SCHEMA_PATH
+sqlite_app.server.connect = connect
+sqlite_app.server.init_db = init_db
+sqlite_app.server.is_integrity_error = is_integrity_error
 
 
 def main():
