@@ -436,6 +436,23 @@ python3 backend/app.py</pre>
                 )
             return {"message": "认证申请已提交，等待管理员审核"}
 
+        if len(segments) == 2 and segments[1] == "reset-password" and method == "POST":
+            student_no = require_text(body, "studentNo", "学号/工号", 40)
+            real_name = require_text(body, "realName", "真实姓名", 40)
+            new_password = require_text(body, "newPassword", "新密码", 80)
+            user = conn.execute(
+                "SELECT userNo FROM [User] WHERE studentNo = ? AND realName = ?",
+                (student_no, real_name),
+            ).fetchone()
+            if not user:
+                raise HttpError(404, "学号与真实姓名不匹配")
+            with conn:
+                conn.execute(
+                    "UPDATE [User] SET password = ? WHERE userNo = ?",
+                    (hash_password(new_password), user["userNo"]),
+                )
+            return {"message": "密码已重置，请使用新密码登录"}
+
         raise HttpError(404, "认证接口不存在")
 
     def route_uploads(self, conn: sqlite3.Connection, method: str, segments: list[str], body: dict):

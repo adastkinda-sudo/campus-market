@@ -108,14 +108,30 @@
         </div>
       </aside>
       <div class="auth-form-panel">
-        <form v-if="!registerMode" class="auth-form" @submit.prevent="doLogin">
+        <form v-if="!registerMode && !forgotMode" class="auth-form" @submit.prevent="doLogin">
           <div class="auth-heading"><h2>欢迎回来</h2><p>请登录您的账号以继续</p></div>
           <div class="auth-fields">
             <label class="auth-field"><input v-model="loginForm.account" placeholder="用户名 / 学号 / 手机号" required /></label>
             <label class="auth-field"><input v-model="loginForm.password" type="password" placeholder="密码" required /></label>
           </div>
           <button class="btn auth-submit" type="submit">立即登录</button>
-          <p class="auth-switch">还没有账号？ <button class="auth-link" type="button" @click="registerMode = true">免费注册</button></p>
+          <p class="auth-switch">
+            <button class="auth-link" type="button" @click="forgotMode = true; registerMode = false">忘记密码</button>
+            <span class="auth-switch-sep">｜</span>
+            还没有账号？<button class="auth-link" type="button" @click="registerMode = true; forgotMode = false">免费注册</button>
+          </p>
+        </form>
+        <form v-else-if="forgotMode" class="auth-form" @submit.prevent="doResetPassword">
+          <div class="auth-heading"><h2>重置密码</h2><p>验证学号和真实姓名以重置密码</p></div>
+          <div class="auth-fields">
+            <label class="auth-field"><input v-model="resetForm.studentNo" placeholder="学号 / 工号" required /></label>
+            <label class="auth-field"><input v-model="resetForm.realName" placeholder="真实姓名" required /></label>
+            <label class="auth-field"><input v-model="resetForm.newPassword" type="password" placeholder="新密码" required /></label>
+          </div>
+          <button class="btn auth-submit" type="submit">重置密码</button>
+          <p class="auth-switch">
+            <button class="auth-link" type="button" @click="forgotMode = false">返回登录</button>
+          </p>
         </form>
         <form v-else class="auth-form auth-form-register" @submit.prevent="doRegister">
           <div class="auth-heading"><h2>创建账号</h2><p>注册后再提交校园卡认证</p></div>
@@ -141,7 +157,7 @@
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import FileUpload from "../components/FileUpload.vue";
-import { register, submitAuth as apiSubmitAuth, updateProfile } from "../api/modules/auth.js";
+import { register, submitAuth as apiSubmitAuth, updateProfile, resetPassword } from "../api/modules/auth.js";
 import { campusCardSrc } from "../api/modules/uploads.js";
 import { useSessionStore } from "../stores/session.js";
 
@@ -149,8 +165,10 @@ const router = useRouter();
 const session = useSessionStore();
 
 const registerMode = ref(false);
+const forgotMode = ref(false);
 const loginForm = reactive({ account: "", password: "" });
 const registerForm = reactive({ userType: "学生", studentNo: "", realName: "", nickname: "", phone: "", wechat: "", password: "", confirmPassword: "" });
+const resetForm = reactive({ studentNo: "", realName: "", newPassword: "" });
 const profile = reactive({ nickname: "", gender: "保密", entryYear: "", avatarUrl: "", bio: "", phone: "", wechat: "" });
 const authForm = reactive({ campusCardImageUrl: "", bio: "" });
 
@@ -206,6 +224,17 @@ async function doRegister() {
     const data = await register(body);
     session.notify(data.message);
     registerMode.value = false;
+  } catch (error) {
+    session.notify(error.message, true);
+  }
+}
+
+async function doResetPassword() {
+  try {
+    const data = await resetPassword(resetForm);
+    session.notify(data.message);
+    Object.assign(resetForm, { studentNo: "", realName: "", newPassword: "" });
+    forgotMode.value = false;
   } catch (error) {
     session.notify(error.message, true);
   }
@@ -422,6 +451,7 @@ onMounted(syncProfile);
 }
 .auth-submit:hover { background: linear-gradient(135deg, #2dd4bf, var(--primary-light)); box-shadow: 0 14px 30px rgba(13, 148, 136, 0.3); }
 .auth-switch { text-align: center; color: var(--muted); font-size: 15px; font-weight: 750; }
+.auth-switch-sep { margin: 0 4px; color: var(--line-strong); }
 .auth-link { min-height: auto; padding: 4px; border: 0; color: var(--primary); text-decoration: none; background: transparent; box-shadow: none; font-weight: 850; }
 .auth-link:hover { transform: none; color: var(--primary-dark); }
 

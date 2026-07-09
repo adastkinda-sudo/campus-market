@@ -109,10 +109,10 @@ const activeItemNo = ref(null);
 
 const showcaseItems = computed(() => hotItems.value.slice(0, 8));
 const filteredShowcaseItems = computed(() => {
-  if (activeCategory.value === null) return showcaseItems.value;
-  return showcaseItems.value.filter(
+  const items = activeCategory.value === null ? hotItems.value : hotItems.value.filter(
     (item) => item.categoryNo === activeCategory.value || item.parentCategoryNo === activeCategory.value
   );
+  return items.slice(0, 8);
 });
 const previewItems = computed(() => hotItems.value.slice(0, 4));
 const parentCategories = computed(() => common.categories.filter((category) => !category.parentCategoryNo).slice(0, 8));

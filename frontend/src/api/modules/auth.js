@@ -23,3 +23,7 @@ export function updateProfile(profile) {
 export function submitAuth(body) {
   return api("/api/auth/submit-auth", { method: "POST", body: JSON.stringify(body) });
 }
+
+export function resetPassword(body) {
+  return api("/api/auth/reset-password", { method: "POST", body: JSON.stringify(body) });
+}

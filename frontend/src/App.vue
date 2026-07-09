@@ -1,16 +1,18 @@
 <template>
   <template v-if="!isAuthPage">
     <header class="topbar">
-      <RouterLink v-if="route.path !== '/'" class="back-home" to="/" title="返回首页">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-      </RouterLink>
-      <RouterLink class="brand" to="/">
-        <img class="brand-logo" src="/assets/liwu-logo.svg" alt="理物" />
-        <div class="brand-copy">
-          <strong>华理校内二手交易平台</strong>
-          <span>让闲置在校园里流动</span>
-        </div>
-      </RouterLink>
+      <div class="topbar-left">
+        <RouterLink v-if="route.path !== '/'" class="back-home" to="/" title="返回首页">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </RouterLink>
+        <RouterLink class="brand" to="/">
+          <img class="brand-logo" src="/assets/liwu-logo.svg" alt="理物" />
+          <div class="brand-copy">
+            <strong>华理校内二手交易平台</strong>
+            <span>让闲置在校园里流动</span>
+          </div>
+        </RouterLink>
+      </div>
 
       <form class="topbar-search" @submit.prevent="doSearch">
         <div class="search-type">
@@ -29,11 +31,12 @@
       </form>
 
       <div class="topbar-actions">
-        <RouterLink class="mine-btn" to="/account">
+        <RouterLink v-if="session.principal" class="mine-btn" to="/account">
           <img v-if="session.principal?.avatarUrl" class="mine-avatar" :src="session.principal.avatarUrl" alt="" />
-          <span v-else class="mine-avatar-placeholder">{{ session.principal ? session.principal.nickname?.[0] : "我" }}</span>
-          <span class="mine-label">{{ session.principal ? "我的" : "登录" }}</span>
+          <span v-else class="mine-avatar-placeholder">{{ session.principal.nickname?.[0] }}</span>
+          <span class="mine-label">我的</span>
         </RouterLink>
+        <RouterLink v-else class="login-btn" to="/account">登录</RouterLink>
       </div>
     </header>
 
@@ -162,6 +165,8 @@ onMounted(async () => {
 /* ===== Topbar Actions ===== */
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
 
+.topbar-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
 /* ===== Topbar Search ===== */
 .topbar-search {
   flex: 1;
@@ -257,6 +262,22 @@ onMounted(async () => {
   font-weight: 700;
 }
 .mine-label { font-size: 13px; font-weight: 650; }
+
+.login-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 20px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 8px 18px rgba(13, 148, 136, 0.24);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+.login-btn:hover { transform: translateY(-1px); box-shadow: 0 12px 26px rgba(13, 148, 136, 0.32); }
 
 /* ===== Responsive ===== */
 @media (max-width: 980px) {
