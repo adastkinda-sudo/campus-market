@@ -4,21 +4,36 @@
       <span class="brand-mark">C2C</span>
       <div>
         <strong>华东理工大学校园二手交易系统</strong>
-        <span>{{ userBadge }}</span>
       </div>
     </RouterLink>
+
+    <form class="topbar-search" @submit.prevent="doSearch">
+      <div class="search-type">
+        <button :class="['type-btn', searchType === 'item' ? 'active' : '']" type="button" @click="searchType = 'item'">商品</button>
+        <button :class="['type-btn', searchType === 'user' ? 'active' : '']" type="button" @click="searchType = 'user'">用户</button>
+      </div>
+      <input
+        v-model="searchKeyword"
+        type="search"
+        :placeholder="searchType === 'item' ? '搜索商品名称、描述...' : '搜索用户昵称、姓名、学号...'"
+        autocomplete="off"
+      />
+      <button class="search-submit" type="submit">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+    </form>
+
     <div class="topbar-actions">
       <button class="icon-btn theme-toggle" type="button" title="切换深色模式" @click="toggleTheme">{{ session.theme === "dark" ? "☀️" : "🌙" }}</button>
-      <nav>
-        <RouterLink v-for="item in navItems" :key="item.to" class="nav-btn" :to="item.to">
-          {{ item.label }}
-        </RouterLink>
-      </nav>
+      <RouterLink class="mine-btn" to="/account">
+        <img v-if="session.principal?.avatarUrl" class="mine-avatar" :src="session.principal.avatarUrl" alt="" />
+        <span v-else class="mine-avatar-placeholder">{{ session.principal ? session.principal.nickname?.[0] : "我" }}</span>
+        <span class="mine-label">{{ session.principal ? "我的" : "登录" }}</span>
+      </RouterLink>
     </div>
   </header>
 
   <main class="shell">
-    <GlobalSearch v-if="showGlobalSearch" />
     <section v-if="session.notice" :class="['notice', session.noticeError ? 'error' : '']">{{ session.notice }}</section>
     <RouterView />
   </main>
@@ -27,49 +42,31 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from "vue";
-import { RouterLink, RouterView, useRoute } from "vue-router";
-import GlobalSearch from "./components/GlobalSearch.vue";
+import { onMounted, ref } from "vue";
+import { RouterLink, RouterView, useRouter } from "vue-router";
 import SideFloat from "./components/SideFloat.vue";
 import { useCommonStore } from "./stores/common.js";
 import { useSessionStore } from "./stores/session.js";
 
-const route = useRoute();
+const router = useRouter();
 const session = useSessionStore();
 const common = useCommonStore();
 
-const showGlobalSearch = computed(() => route.path !== "/account");
-
-const userBadge = computed(() => {
-  if (!session.principal) return "游客浏览";
-  if (session.isAdmin) return `管理员 ${session.principal.username}`;
-  return `${session.principal.nickname} · ${session.principal.userType || "学生"} · ${session.principal.authStatus} · 信用 ${session.principal.creditScore}`;
-});
-
-const navItems = computed(() => {
-  const items = [
-    { to: "/", label: "项目介绍" },
-    { to: "/items", label: "浏览物品" },
-    { to: "/wanted", label: "求购市场" },
-    { to: "/users", label: "用户搜索" },
-    { to: "/contact", label: "联系我们" },
-  ];
-  if (session.isUser) {
-    items.push(
-      { to: "/favorites", label: "我的收藏" },
-      { to: "/notifications", label: session.unreadCount ? `通知(${session.unreadCount})` : "通知" },
-      { to: "/publish", label: "发布管理" },
-      { to: "/orders", label: "我的订单" },
-      { to: "/chats", label: "私信" },
-    );
-  }
-  if (session.isAdmin) items.push({ to: "/admin", label: "后台管理" });
-  items.push({ to: "/account", label: session.principal ? "账号" : "登录" });
-  return items;
-});
+const searchType = ref("item");
+const searchKeyword = ref("");
 
 function toggleTheme() {
   session.setTheme(session.theme === "dark" ? "light" : "dark");
+}
+
+async function doSearch() {
+  const kw = searchKeyword.value.trim();
+  if (!kw) return;
+  if (searchType.value === "item") {
+    await router.push({ path: "/items", query: { keyword: kw } });
+  } else {
+    await router.push({ path: "/users", query: { keyword: kw } });
+  }
 }
 
 onMounted(async () => {
