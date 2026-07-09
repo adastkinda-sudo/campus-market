@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="music instrument">
+  <rect width="640" height="420" rx="18" fill="#F7F1E9"/>
+  <ellipse cx="274" cy="246" rx="86" ry="102" fill="#F2B84B"/>
+  <ellipse cx="354" cy="186" rx="58" ry="72" fill="#F2B84B"/>
+  <circle cx="312" cy="222" r="30" fill="#1F2A44"/>
+  <rect x="382" y="86" width="38" height="190" rx="18" fill="#287C78" transform="rotate(35 382 86)"/>
+  <path d="M212 326l194-238" stroke="#F6F2E7" stroke-width="8" stroke-linecap="round"/>
+  <path d="M232 336l194-238" stroke="#F6F2E7" stroke-width="8" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="kitchenware">
+  <rect width="640" height="420" rx="18" fill="#F7F4EA"/>
+  <rect x="176" y="162" width="236" height="146" rx="34" fill="#287C78"/>
+  <path d="M414 194h38c38 0 38 82 0 82h-38" fill="none" stroke="#287C78" stroke-width="22"/>
+  <path d="M210 122h170" stroke="#1F2A44" stroke-width="18" stroke-linecap="round"/>
+  <path d="M256 84v54M330 84v54" stroke="#F2B84B" stroke-width="14" stroke-linecap="round"/>
+  <rect x="206" y="204" width="176" height="16" rx="8" fill="#F6F2E7" opacity=".8"/>
+  <rect x="230" y="332" width="128" height="22" rx="11" fill="#1F2A44"/>
+</svg>

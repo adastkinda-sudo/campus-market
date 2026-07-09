@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="lab supplies">
+  <rect width="640" height="420" rx="18" fill="#ECF6F8"/>
+  <path d="M238 76h164v56l78 180c12 28-8 60-39 60H199c-31 0-51-32-39-60l78-180z" fill="#FFFFFF" stroke="#287C78" stroke-width="12"/>
+  <path d="M215 246h210l35 82c6 14-4 30-19 30H199c-15 0-25-16-19-30z" fill="#7DB9B3"/>
+  <rect x="256" y="70" width="128" height="36" rx="12" fill="#1F2A44"/>
+  <circle cx="278" cy="288" r="18" fill="#F2B84B"/>
+  <circle cx="348" cy="316" r="12" fill="#F6F2E7"/>
+</svg>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="camping">
+  <rect width="640" height="420" rx="18" fill="#F4F7EF"/>
+  <path d="M320 88l176 244H144z" fill="#287C78"/>
+  <path d="M320 134l72 198H248z" fill="#F2B84B"/>
+  <path d="M320 134v198" stroke="#F6F2E7" stroke-width="10" stroke-linecap="round"/>
+  <path d="M120 332h400" stroke="#1F2A44" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="472" cy="104" r="28" fill="#F2B84B" opacity=".8"/>
+</svg>

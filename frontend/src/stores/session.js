@@ -9,6 +9,7 @@ export const useSessionStore = defineStore("session", () => {
   const token = ref(localStorage.getItem(TOKEN_KEY) || "");
   const principal = ref(JSON.parse(localStorage.getItem(PRINCIPAL_KEY) || "null"));
   const unreadCount = ref(0);
+  const chatUnreadCount = ref(0);
   const notice = ref("");
   const noticeError = ref(false);
 
@@ -80,6 +81,7 @@ export const useSessionStore = defineStore("session", () => {
     token,
     principal,
     unreadCount,
+    chatUnreadCount,
     notice,
     noticeError,
     isUser,

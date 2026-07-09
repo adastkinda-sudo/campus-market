@@ -320,7 +320,7 @@ onMounted(loadHome);
 .preview-dot:nth-of-type(2) { bottom: 28%; left: 10%; animation-delay: 0.8s; }
 .preview-dot:nth-of-type(3) { top: 62%; right: 6%; animation-delay: 1.6s; background: var(--accent-blue); }
 
-/* ===== Product Showcase Grid ===== */
+/* ===== Product Showcase ===== */
 .product-showcase {
   padding: 26px;
   border: 1px solid rgba(255, 255, 255, 0.72);
@@ -356,77 +356,6 @@ onMounted(loadHome);
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
   color: #fff;
   box-shadow: 0 6px 16px rgba(13, 148, 136, 0.22);
-}
-
-.showcase-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 18px;
-}
-
-.showcase-card {
-  overflow: hidden;
-  display: grid;
-  grid-template-rows: 170px auto;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: #fff;
-  color: var(--ink);
-  text-align: left;
-  box-shadow: var(--shadow-sm);
-  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
-  cursor: pointer;
-  padding: 0;
-  min-width: 0;
-}
-.showcase-card:hover {
-  transform: translateY(-3px);
-  border-color: rgba(13, 148, 136, 0.25);
-  box-shadow: var(--shadow-lg);
-}
-
-.showcase-card-media {
-  overflow: hidden;
-  background: linear-gradient(135deg, rgba(13, 148, 136, 0.08), rgba(59, 130, 246, 0.06)), #f8fafc;
-}
-.showcase-card-media img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.35s ease;
-}
-.showcase-card:hover .showcase-card-media img { transform: scale(1.05); }
-
-.showcase-card-body {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 14px;
-}
-
-.showcase-card-title {
-  font-size: 14px;
-  font-weight: 750;
-  line-height: 1.4;
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.showcase-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.showcase-fav-count {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 650;
-  white-space: nowrap;
 }
 
 /* ===== Stats Section ===== */
@@ -469,7 +398,5 @@ onMounted(loadHome);
   .product-showcase { padding: 18px; }
   .showcase-tabs { gap: 6px; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
   .showcase-tab { padding: 5px 10px; font-size: 12px; }
-  .showcase-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-  .showcase-card { grid-template-rows: 140px auto; }
 }
 </style>

@@ -153,7 +153,7 @@ const authForm = reactive({ campusCardImageUrl: "", bio: "" });
 const userEntries = computed(() => [
   { to: "/favorites", label: "我的收藏", icon: "⭐" },
   { to: "/orders", label: "我的订单", icon: "📦" },
-  { to: "/chats", label: "私信", icon: "💬", badge: session.unreadCount > 0 ? session.unreadCount : null },
+  { to: "/chats", label: "私信", icon: "💬", badge: session.chatUnreadCount > 0 ? session.chatUnreadCount : null },
   { to: "/notifications", label: "通知", icon: "🔔", badge: session.unreadCount > 0 ? session.unreadCount : null },
   { to: "/publish", label: "发布管理", icon: "📝" },
   { to: "/wanted", label: "求购市场", icon: "🛒" },
@@ -332,7 +332,7 @@ onMounted(syncProfile);
   display: grid;
   grid-template-columns: minmax(280px, 0.78fr) minmax(420px, 1fr);
   width: min(1020px, calc(100vw - 48px));
-  min-height: 580px;
+  min-height: 460px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.8);
   border-radius: 32px;

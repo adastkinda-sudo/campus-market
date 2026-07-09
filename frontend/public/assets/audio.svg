@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="audio gear">
+  <rect width="640" height="420" rx="18" fill="#F1F0F8"/>
+  <path d="M210 236v-54c0-70 48-118 110-118s110 48 110 118v54" fill="none" stroke="#1F2A44" stroke-width="24" stroke-linecap="round"/>
+  <rect x="158" y="212" width="82" height="116" rx="28" fill="#287C78"/>
+  <rect x="400" y="212" width="82" height="116" rx="28" fill="#287C78"/>
+  <circle cx="320" cy="250" r="58" fill="#F2B84B"/>
+  <circle cx="320" cy="250" r="24" fill="#F6F2E7"/>
+  <path d="M348 292c28 0 50-14 62-38" fill="none" stroke="#1F2A44" stroke-width="10" stroke-linecap="round"/>
+</svg>

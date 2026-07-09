@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="camera">
+  <rect width="640" height="420" rx="18" fill="#F2F5F6"/>
+  <rect x="140" y="142" width="360" height="190" rx="28" fill="#1F2A44"/>
+  <rect x="206" y="100" width="132" height="60" rx="16" fill="#287C78"/>
+  <circle cx="320" cy="238" r="72" fill="#F6F2E7"/>
+  <circle cx="320" cy="238" r="44" fill="#7DB9B3"/>
+  <circle cx="320" cy="238" r="20" fill="#263238"/>
+  <circle cx="450" cy="178" r="18" fill="#F2B84B"/>
+</svg>

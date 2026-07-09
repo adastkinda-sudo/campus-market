@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="skateboard">
+  <rect width="640" height="420" rx="18" fill="#EEF6F1"/>
+  <path d="M146 226c62 70 286 70 348 0c18-20 4-48-24-40c-74 22-226 22-300 0c-28-8-42 20-24 40z" fill="#287C78"/>
+  <path d="M210 218c70 28 150 28 220 0" fill="none" stroke="#F2B84B" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="230" cy="306" r="28" fill="#1F2A44"/>
+  <circle cx="410" cy="306" r="28" fill="#1F2A44"/>
+  <circle cx="230" cy="306" r="10" fill="#F6F2E7"/>
+  <circle cx="410" cy="306" r="10" fill="#F6F2E7"/>
+</svg>

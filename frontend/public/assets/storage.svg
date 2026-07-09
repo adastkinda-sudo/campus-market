@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="storage boxes">
+  <rect width="640" height="420" rx="18" fill="#F4F7F2"/>
+  <rect x="142" y="190" width="164" height="136" rx="16" fill="#7DB9B3"/>
+  <rect x="334" y="154" width="164" height="172" rx="16" fill="#287C78"/>
+  <rect x="166" y="214" width="116" height="28" rx="10" fill="#F6F2E7"/>
+  <rect x="362" y="184" width="108" height="28" rx="10" fill="#F6F2E7"/>
+  <path d="M174 166h104l28 24H142z" fill="#F2B84B"/>
+  <path d="M368 126h96l34 28H334z" fill="#1F2A44"/>
+</svg>

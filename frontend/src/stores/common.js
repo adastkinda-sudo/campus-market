@@ -29,8 +29,20 @@ export const useCommonStore = defineStore("common", () => {
       } catch {
         session.unreadCount = 0;
       }
+      try {
+        if (session.canTrade) {
+          const chats = await api("/api/chats");
+          const conversations = chats.conversations || [];
+          session.chatUnreadCount = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+        } else {
+          session.chatUnreadCount = 0;
+        }
+      } catch {
+        session.chatUnreadCount = 0;
+      }
     } else {
       session.unreadCount = 0;
+      session.chatUnreadCount = 0;
     }
   }
 

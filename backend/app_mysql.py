@@ -626,6 +626,9 @@ def seed_mysql_market_data(conn: DictConnection) -> None:
         if seller_student_no not in sellers or category_name not in category_ids:
             continue
         campus_name = sqlite_app.core.infer_item_campus(title, category_name)
+        image_url = image
+        if image_url in sqlite_app.core.GENERIC_PRODUCT_IMAGES:
+            image_url = sqlite_app.core.default_image_for_category_text(f"{title} {category_name}")
         if first_value("SELECT COUNT(*) FROM Item WHERE title = ?", (title,)):
             conn.execute(
                 """
@@ -642,7 +645,7 @@ def seed_mysql_market_data(conn: DictConnection) -> None:
                     original,
                     sell,
                     condition,
-                    image,
+                    image_url,
                     views,
                     title,
                 ),
@@ -662,10 +665,28 @@ def seed_mysql_market_data(conn: DictConnection) -> None:
                 original,
                 sell,
                 condition,
-                image,
+                image_url,
                 views,
             ),
         )
+
+    generic_images = tuple(sorted(sqlite_app.core.GENERIC_PRODUCT_IMAGES))
+    placeholders = ", ".join(["?"] * len(generic_images))
+    generic_image_rows = conn.execute(
+        f"""
+        SELECT i.itemNo, i.title, i.imageUrl, c.categoryName, pc.categoryName AS parentCategoryName
+        FROM Item i
+        JOIN Category c ON c.categoryNo = i.categoryNo
+        LEFT JOIN Category pc ON pc.categoryNo = c.parentCategoryNo
+        WHERE i.imageUrl IN ({placeholders})
+        """,
+        generic_images,
+    ).fetchall()
+    for row in generic_image_rows:
+        image_text = f"{row['title']} {row['categoryName']} {row['parentCategoryName'] or ''}"
+        image_url = sqlite_app.core.default_image_for_category_text(image_text)
+        if image_url != row["imageUrl"]:
+            conn.execute("UPDATE Item SET imageUrl = ? WHERE itemNo = ?", (image_url, row["itemNo"]))
 
     wanted_posts = [
         (

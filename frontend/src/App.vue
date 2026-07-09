@@ -1,6 +1,9 @@
 <template>
   <template v-if="!isAuthPage">
     <header class="topbar">
+      <RouterLink v-if="route.path !== '/'" class="back-home" to="/" title="返回首页">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </RouterLink>
       <RouterLink class="brand" to="/">
         <img class="brand-logo" src="/assets/liwu-logo.svg" alt="理物" />
         <div class="brand-copy">
@@ -103,6 +106,18 @@ onMounted(async () => {
   color: var(--ink);
   text-decoration: none;
 }
+.back-home {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  transition: all 0.16s ease;
+}
+.back-home:hover { border-color: var(--primary); color: var(--primary); }
 .brand-logo { display: block; width: 92px; height: auto; flex: 0 0 auto; }
 .brand-copy { display: grid; gap: 2px; }
 .brand strong { display: block; font-size: 16px; line-height: 1.25; font-weight: 800; letter-spacing: -0.01em; }
@@ -252,6 +267,7 @@ onMounted(async () => {
   .topbar-search { max-width: none; order: 3; width: 100%; }
   .topbar { flex-wrap: wrap; }
   .brand { flex-shrink: 0; }
+  .back-home { width: 30px; height: 30px; }
 }
 @media (max-width: 620px) {
   .topbar { padding: 12px 14px; }

@@ -15,10 +15,9 @@
       <span :class="['pill', session.canTrade ? 'green' : 'gold']">{{ session.canTrade ? "可发布" : "受限" }}</span>
     </section>
 
-    <section class="split">
-      <div class="band animate-in delay-1">
-        <div class="section-head"><h2>发布闲置物品</h2></div>
-        <form v-if="session.canTrade" class="form-grid" @submit.prevent="publishItem">
+    <section class="band animate-in delay-1">
+      <div class="section-head"><h2>发布闲置物品</h2></div>
+      <form v-if="session.canTrade" class="form-grid" @submit.prevent="publishItem">
           <label>物品标题<input v-model="form.title" required /></label>
           <label>分类
             <select v-model="form.categoryNo" required>
@@ -37,29 +36,30 @@
           <label style="grid-column: 1 / -1">详细描述<textarea v-model="form.description" required /></label>
           <button class="btn" type="submit">发布物品</button>
         </form>
-        <div v-else class="empty-state">
-          <span class="icon">🛡️</span>
-          <strong>发布受限</strong>
-          <p>请先完成校园认证，或等待信用积分恢复到 60 以上。</p>
-        </div>
+      <div v-else class="empty-state">
+        <span class="icon">🛡️</span>
+        <strong>发布受限</strong>
+        <p>请先完成校园认证，或等待信用积分恢复到 60 以上。</p>
       </div>
+    </section>
 
-      <div class="band animate-in delay-2">
-        <div class="section-head"><h2>我的发布</h2></div>
-        <div v-if="myItems.length" class="manage-grid">
-          <ProductCard
-            v-for="item in myItems"
-            :key="item.itemNo"
-            :item="item"
-            compact
-            editable
-            @detail="openDetail"
-            @edit="openEdit"
-            @shelve="shelveItem"
-          />
-        </div>
-        <div v-else class="empty">暂无发布</div>
+    <section class="band animate-in delay-2">
+      <div class="section-head"><h2>我的发布</h2></div>
+      <div v-if="myItems.length" class="showcase-grid">
+        <button v-for="item in myItems" :key="item.itemNo" class="showcase-card" type="button" @click="openDetail(item)">
+          <div class="showcase-card-media">
+            <img :src="item.imageUrl || '/assets/kettle.svg'" :alt="item.title" />
+          </div>
+          <div class="showcase-card-body">
+            <strong class="showcase-card-title">{{ item.title }}</strong>
+            <div class="showcase-card-footer">
+              <span class="price">{{ money(item.sellPrice) }}</span>
+              <span class="showcase-fav-count">收藏 {{ item.favoriteCount || 0 }}</span>
+            </div>
+          </div>
+        </button>
       </div>
+      <div v-else class="empty">暂无发布</div>
     </section>
   </template>
 
@@ -93,9 +93,9 @@ import { createItem, getItem, searchItems, updateItem, updateItemStatus } from "
 import BaseModal from "../components/BaseModal.vue";
 import FileUpload from "../components/FileUpload.vue";
 import ItemDetailModal from "../components/ItemDetailModal.vue";
-import ProductCard from "../components/ProductCard.vue";
 import { useCommonStore } from "../stores/common.js";
 import { useSessionStore } from "../stores/session.js";
+import { money } from "../utils.js";
 
 const session = useSessionStore();
 const common = useCommonStore();
