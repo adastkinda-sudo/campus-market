@@ -13,9 +13,13 @@ __pycache__/
 htmlcov/
 
 # Runtime data
-data/
+data/*
+!data/
+!data/campus_market.db
+data/uploads/
 output/
 *.db
+!data/campus_market.db
 *.sqlite
 *.sqlite3
 

@@ -1,15 +1,19 @@
 <template>
-  <label class="upload-box">
-    <span>{{ label }}</span>
-    <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="onChange" />
-    <strong v-if="loading">上传中...</strong>
-    <strong v-else-if="modelValue">已上传</strong>
-    <small v-if="hint">{{ hint }}</small>
-  </label>
+  <div class="upload-box">
+    <span class="upload-label">{{ label }}</span>
+    <div class="upload-row">
+      <label class="upload-btn">
+        选择文件
+        <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" @change="onChange" />
+      </label>
+      <span class="upload-status">{{ statusText }}</span>
+    </div>
+    <small v-if="hint" class="upload-hint">{{ hint }}</small>
+  </div>
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import { uploadImage } from "../api/modules/uploads.js";
 import { useSessionStore } from "../stores/session.js";
 
@@ -22,6 +26,12 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue"]);
 const loading = ref(false);
 const session = useSessionStore();
+
+const statusText = computed(() => {
+  if (loading.value) return "上传中...";
+  if (props.modelValue) return "已上传";
+  return "未选择文件";
+});
 
 async function onChange(event) {
   const file = event.target.files?.[0];
@@ -39,3 +49,31 @@ async function onChange(event) {
   }
 }
 </script>
+
+<style scoped>
+.upload-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.upload-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  white-space: nowrap;
+}
+.upload-btn:hover { border-color: var(--primary); color: var(--primary); }
+.upload-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.upload-status { color: var(--muted); font-size: 13px; }
+.upload-hint { color: var(--muted); }
+</style>

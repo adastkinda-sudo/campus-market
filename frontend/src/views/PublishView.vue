@@ -15,9 +15,9 @@
       <span :class="['pill', session.canTrade ? 'green' : 'gold']">{{ session.canTrade ? "可发布" : "受限" }}</span>
     </section>
 
-    <section class="band animate-in delay-1">
+    <section class="band band-publish animate-in delay-1">
       <div class="section-head"><h2>发布闲置物品</h2></div>
-      <form v-if="session.canTrade" class="form-grid" @submit.prevent="publishItem">
+      <form v-if="session.canTrade" class="form-grid three form-grid-tight" @submit.prevent="publishItem">
           <label>物品标题<input v-model="form.title" required /></label>
           <label>分类
             <select v-model="form.categoryNo" required>
@@ -34,7 +34,7 @@
           </label>
           <FileUpload v-model="form.imageUrl" purpose="item" label="商品图片" />
           <label style="grid-column: 1 / -1">详细描述<textarea v-model="form.description" required /></label>
-          <button class="btn" type="submit">发布物品</button>
+          <button class="btn publish-submit" type="submit">发布物品</button>
         </form>
       <div v-else class="empty-state">
         <span class="icon">🛡️</span>
@@ -173,3 +173,13 @@ onMounted(async () => {
   await loadMyItems();
 });
 </script>
+
+<style scoped>
+.publish-submit {
+  grid-column: 2;
+  min-height: 40px;
+}
+@media (max-width: 620px) {
+  .publish-submit { grid-column: auto; }
+}
+</style>

@@ -529,8 +529,6 @@ onMounted(syncProfile);
 .account-panel { padding: 22px; }
 .account-panel .section-head { margin-bottom: 16px; }
 .account-form { gap: 12px; }
-.account-panel textarea { min-height: 84px; }
-.account-panel .upload-box { min-height: 82px; }
 
 /* ===== Responsive ===== */
 @media (max-width: 980px) {
