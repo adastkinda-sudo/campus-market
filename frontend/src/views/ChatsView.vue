@@ -9,7 +9,7 @@
     <aside class="band chat-list">
       <div class="section-head"><h2>私信</h2></div>
       <button v-for="conversation in conversations" :key="conversation.conversationNo" :class="['chat-list-item', activeConversationNo === conversation.conversationNo ? 'active' : '']" type="button" @click="selectConversation(conversation.conversationNo)">
-        <img class="avatar" :src="conversation.otherAvatarUrl || '/assets/avatar-1.svg'" alt="" />
+        <img class="avatar" :src="conversation.otherAvatarUrl || '/assets/default-avatar.svg'" alt="" />
         <span>
           <strong>{{ conversation.otherName }}</strong>
           <small>{{ conversation.relatedItemTitle || "普通会话" }}</small>

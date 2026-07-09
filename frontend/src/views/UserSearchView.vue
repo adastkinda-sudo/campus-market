@@ -10,7 +10,7 @@
   </section>
   <section v-if="searched && users.length" class="item-grid">
     <RouterLink v-for="user in users" :key="user.userNo" class="user-card" :to="`/users/${user.userNo}`">
-      <img class="avatar" :src="user.avatarUrl || '/assets/avatar-1.svg'" alt="" />
+      <img class="avatar" :src="user.avatarUrl || '/assets/default-avatar.svg'" alt="" />
       <div>
         <h3>{{ user.nickname }}</h3>
         <p class="muted">{{ user.userType }} · {{ user.authStatus }} · 信用 {{ user.creditScore }}</p>

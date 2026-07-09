@@ -32,8 +32,7 @@
 
       <div class="topbar-actions">
         <RouterLink v-if="session.principal" class="mine-btn" to="/account">
-          <img v-if="session.principal?.avatarUrl" class="mine-avatar" :src="session.principal.avatarUrl" alt="" />
-          <span v-else class="mine-avatar-placeholder">{{ session.principal.nickname?.[0] }}</span>
+          <img class="mine-avatar" :src="session.principal.avatarUrl || '/assets/default-avatar.svg'" alt="" />
           <span class="mine-label">我的</span>
         </RouterLink>
         <RouterLink v-else class="login-btn" to="/account">登录</RouterLink>
@@ -250,17 +249,6 @@ onMounted(async () => {
 }
 .mine-btn:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); }
 .mine-avatar { width: 30px; height: 30px; border-radius: 999px; object-fit: cover; }
-.mine-avatar-placeholder {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--primary-dark), var(--primary-light));
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-}
 .mine-label { font-size: 13px; font-weight: 650; }
 
 .login-btn {

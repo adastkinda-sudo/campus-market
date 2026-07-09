@@ -21,6 +21,7 @@ GENERIC_PRODUCT_IMAGES = {
     "/assets/bicycle.svg",
     "/assets/kettle.svg",
 }
+DEFAULT_AVATAR_URL = "/assets/default-avatar.svg"
 CATEGORY_IMAGE_RULES = [
     (("电子阅读器", "kindle", "电纸书"), "/assets/ereader.svg"),
     (("手机平板", "手机", "平板", "iphone", "ipad", "redmi"), "/assets/phone.svg"),
@@ -277,10 +278,10 @@ def ensure_sqlite_migrations(conn: sqlite3.Connection) -> None:
 
 def apply_user_profile_defaults(conn) -> None:
     profiles = [
-        ("24010001", "男", "2024级", "/assets/avatar-1.svg", "喜欢把不用的教材和数码配件流转给真正需要的人。"),
-        ("24010002", "女", "2024级", "/assets/avatar-2.svg", "搬宿舍清理闲置中，支持校内面交。"),
-        ("24010003", "男", "2020级", "/assets/avatar-3.svg", "校友回收整理旧资料，偶尔发布一些复习书。"),
-        ("24010004", "女", "教职工", "/assets/avatar-4.svg", "主要发布课程相关书籍和办公小物。"),
+        ("24010001", "男", "2024级", DEFAULT_AVATAR_URL, "喜欢把不用的教材和数码配件流转给真正需要的人。"),
+        ("24010002", "女", "2024级", DEFAULT_AVATAR_URL, "搬宿舍清理闲置中，支持校内面交。"),
+        ("24010003", "男", "2020级", DEFAULT_AVATAR_URL, "校友回收整理旧资料，偶尔发布一些复习书。"),
+        ("24010004", "女", "教职工", DEFAULT_AVATAR_URL, "主要发布课程相关书籍和办公小物。"),
     ]
     for student_no, gender, entry_year, avatar_url, bio in profiles:
         conn.execute(
@@ -428,10 +429,10 @@ def seed_db(conn: sqlite3.Connection) -> None:
         )
 
     profiles = [
-        ("24010001", "男", "2024级", "/assets/avatar-1.svg", "喜欢把不用的教材和数码配件流转给真正需要的人。"),
-        ("24010002", "女", "2024级", "/assets/avatar-2.svg", "搬宿舍清理闲置中，支持校内面交。"),
-        ("24010003", "男", "2020级", "/assets/avatar-3.svg", "校友回收整理旧资料，偶尔发布一些复习书。"),
-        ("24010004", "女", "教职工", "/assets/avatar-4.svg", "主要发布课程相关书籍和办公小物。"),
+        ("24010001", "男", "2024级", DEFAULT_AVATAR_URL, "喜欢把不用的教材和数码配件流转给真正需要的人。"),
+        ("24010002", "女", "2024级", DEFAULT_AVATAR_URL, "搬宿舍清理闲置中，支持校内面交。"),
+        ("24010003", "男", "2020级", DEFAULT_AVATAR_URL, "校友回收整理旧资料，偶尔发布一些复习书。"),
+        ("24010004", "女", "教职工", DEFAULT_AVATAR_URL, "主要发布课程相关书籍和办公小物。"),
     ]
     for student_no, gender, entry_year, avatar_url, bio in profiles:
         conn.execute(

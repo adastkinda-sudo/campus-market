@@ -1,6 +1,6 @@
 <template>
   <section v-if="user" class="page-header animate-in profile-hero">
-    <img class="avatar-lg" :src="user.avatarUrl || '/assets/avatar-1.svg'" alt="" />
+    <img class="avatar-lg" :src="user.avatarUrl || '/assets/default-avatar.svg'" alt="" />
     <div>
       <h1>{{ user.nickname }}</h1>
       <p class="muted">{{ user.userType }} · {{ user.authStatus }} · 信用 {{ user.creditScore }}</p>

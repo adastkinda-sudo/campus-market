@@ -4,7 +4,7 @@
     <section v-if="session.isUser" class="mine-page animate-in">
       <div class="mine-header">
         <div class="mine-user">
-          <img class="mine-avatar-lg" :src="session.principal.avatarUrl || '/assets/avatar-1.svg'" alt="" />
+          <img class="mine-avatar-lg" :src="session.principal.avatarUrl || '/assets/default-avatar.svg'" alt="" />
           <div class="mine-info">
             <h2>{{ session.principal.nickname }}</h2>
             <p class="muted">{{ session.principal.realName }} · {{ session.principal.userType }} · {{ session.principal.studentNo }}</p>

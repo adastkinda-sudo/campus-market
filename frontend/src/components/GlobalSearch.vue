@@ -50,7 +50,7 @@
             :to="`/users/${user.userNo}`"
             @click="closePanel"
           >
-            <img :src="user.avatarUrl || '/assets/avatar-1.svg'" alt="" />
+            <img :src="user.avatarUrl || '/assets/default-avatar.svg'" alt="" />
             <span>
               <strong>{{ user.nickname }}</strong>
               <small>{{ user.userType }} · {{ user.authStatus }} · 信用 {{ user.creditScore }}</small>
