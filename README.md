@@ -107,7 +107,7 @@ npm run build
 SQLite 版用于快速测试和轻量验证，不需要额外数据库服务：
 
 ```bash
-python3 backend/app.py
+python backend/app.py
 ```
 
 启动成功后访问：

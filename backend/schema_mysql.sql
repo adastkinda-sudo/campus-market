@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS `User` (
     CONSTRAINT chk_user_type CHECK (userType IN ('学生', '教职工', '校友')),
     CONSTRAINT chk_user_gender CHECK (gender IN ('男', '女', '其他', '保密')),
     CONSTRAINT chk_user_auth CHECK (authStatus IN ('未认证', '待审核', '已认证', '认证驳回')),
-    CONSTRAINT chk_user_credit CHECK (creditScore BETWEEN 0 AND 120),
+    CONSTRAINT chk_user_credit CHECK (creditScore BETWEEN 0 AND 100),
     CONSTRAINT chk_user_status CHECK (`status` IN ('正常', '封禁')),
     CONSTRAINT fk_user_admin FOREIGN KEY (adminNo) REFERENCES Admin(adminNo)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -353,7 +353,7 @@ AFTER INSERT ON Review
 FOR EACH ROW
 BEGIN
     UPDATE `User`
-       SET creditScore = GREATEST(0, LEAST(120, creditScore + (NEW.rating - 3) * 2))
+       SET creditScore = GREATEST(0, LEAST(100, creditScore + (NEW.rating - 3) * 2))
      WHERE userNo = NEW.revieweeNo;
 END$$
 

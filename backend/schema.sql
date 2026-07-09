@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS User (
     authSubmitTime TEXT,
     authStatus TEXT NOT NULL DEFAULT '未认证'
         CHECK (authStatus IN ('未认证', '待审核', '已认证', '认证驳回')),
-    creditScore INTEGER NOT NULL DEFAULT 100 CHECK (creditScore BETWEEN 0 AND 120),
+    creditScore INTEGER NOT NULL DEFAULT 100 CHECK (creditScore BETWEEN 0 AND 100),
     status TEXT NOT NULL DEFAULT '正常' CHECK (status IN ('正常', '封禁')),
     registerTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     adminNo INTEGER,
@@ -285,7 +285,7 @@ AFTER INSERT ON Review
 BEGIN
     UPDATE User
        SET creditScore = CASE
-           WHEN creditScore + (NEW.rating - 3) * 2 > 120 THEN 120
+           WHEN creditScore + (NEW.rating - 3) * 2 > 100 THEN 100
            WHEN creditScore + (NEW.rating - 3) * 2 < 0 THEN 0
            ELSE creditScore + (NEW.rating - 3) * 2
        END
