@@ -2,9 +2,10 @@
   <template v-if="!isAuthPage">
     <header class="topbar">
       <RouterLink class="brand" to="/">
-        <span class="brand-mark">C2C</span>
-        <div>
-          <strong>华东理工大学校园二手交易系统</strong>
+        <img class="brand-logo" src="/assets/liwu-logo.svg" alt="理物" />
+        <div class="brand-copy">
+          <strong>华理校内二手交易平台</strong>
+          <span>让闲置在校园里流动</span>
         </div>
       </RouterLink>
 
@@ -102,27 +103,8 @@ onMounted(async () => {
   color: var(--ink);
   text-decoration: none;
 }
-.brand-mark {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  overflow: hidden;
-  border-radius: 12px;
-  color: #fff;
-  background: linear-gradient(135deg, var(--primary-dark), var(--primary-light));
-  box-shadow: 0 10px 22px rgba(13, 148, 136, 0.28);
-  font-weight: 850;
-  letter-spacing: -0.02em;
-}
-.brand-mark::after {
-  content: "";
-  position: absolute;
-  inset: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.32);
-  border-radius: 9px;
-}
+.brand-logo { display: block; width: 92px; height: auto; flex: 0 0 auto; }
+.brand-copy { display: grid; gap: 2px; }
 .brand strong { display: block; font-size: 16px; line-height: 1.25; font-weight: 800; letter-spacing: -0.01em; }
 .brand span:last-child { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; font-weight: 600; }
 
@@ -175,10 +157,19 @@ onMounted(async () => {
   border-radius: 999px;
   background: var(--surface);
   overflow: hidden;
-  transition: box-shadow 0.2s ease;
 }
-.topbar-search:focus-within { box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.15); }
-.search-type { display: flex; align-items: center; padding: 2px; padding-left: 6px; gap: 2px; flex-shrink: 0; }
+.search-type { display: flex; align-items: center; padding: 2px; padding-left: 6px; padding-right: 12px; gap: 2px; flex-shrink: 0; position: relative; }
+.search-type::after {
+  content: "";
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--line-strong);
+}
 .type-btn {
   min-height: 30px;
   padding: 5px 12px;
@@ -203,6 +194,7 @@ onMounted(async () => {
   color: var(--ink);
   font-size: 14px;
   outline: none;
+  box-shadow: none;
 }
 .topbar-search input::placeholder { color: var(--muted); opacity: 0.7; }
 .search-submit {
@@ -264,6 +256,9 @@ onMounted(async () => {
 @media (max-width: 620px) {
   .topbar { padding: 12px 14px; }
   .brand { min-width: 0; }
+  .brand-logo { width: 78px; }
+  .brand-copy strong { font-size: 14px; }
+  .brand .brand-copy span { display: none; }
   #nav, .topbar-actions nav { overflow-x: auto; flex-wrap: nowrap; justify-content: flex-start; }
   .topbar-actions { min-width: 0; }
   .nav-btn { white-space: nowrap; }

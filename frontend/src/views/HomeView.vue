@@ -42,67 +42,42 @@
     <span>{{ common.announcements[0].content }}</span>
   </section>
 
-  <section class="category-strip animate-in">
-    <button v-for="category in parentCategories" :key="category.categoryNo" class="category-chip" type="button" @click="$router.push({ path: '/items', query: { categoryNo: category.categoryNo } })">
-      <strong>{{ category.categoryName }}</strong>
-      <span>{{ category.itemCount || 0 }} 件</span>
-    </button>
-  </section>
-
-  <section v-if="featuredItems.length" class="product-showcase animate-in">
+  <section v-if="showcaseItems.length" class="product-showcase animate-in">
     <div class="section-head">
-      <h2>商品精选展示</h2>
+      <h2>热门商品</h2>
       <RouterLink class="ghost-btn" to="/items">进入市场</RouterLink>
     </div>
-    <div class="product-showcase-layout">
-      <div class="featured-product-stack">
-        <article v-for="(item, index) in featuredItems" :key="item.itemNo" class="featured-product">
-          <div class="featured-product-media">
-            <img :src="defaultImage(item)" :alt="item.title" />
-            <span class="featured-badge">{{ index ? "精选好物" : "重点推荐" }}</span>
-          </div>
-          <div class="featured-product-body">
-            <span class="eyebrow">Featured Item</span>
-            <h2>{{ item.title }}</h2>
-            <p>{{ truncateText(item.description, 92) }}</p>
-            <div class="featured-price-row">
-              <span class="price">{{ money(item.sellPrice) }}</span>
-              <span v-if="item.originalPrice > item.sellPrice" class="original-price">{{ money(item.originalPrice) }}</span>
-              <span v-if="discountPercent(item)" class="discount-badge">{{ discountPercent(item) }}</span>
-            </div>
-            <div class="meta">
-              <span class="pill green">{{ item.status }}</span>
-              <span class="pill gold">{{ item.campusName }}</span>
-              <span class="pill">{{ item.condition }}</span>
-              <span class="pill">{{ item.categoryName }}</span>
-              <span class="pill gold">信用 {{ item.creditScore }}</span>
-            </div>
-            <div class="actions">
-              <button class="btn" type="button" @click="openDetail(item)">查看详情</button>
-              <RouterLink class="ghost-btn" :to="{ path: '/items', query: { categoryNo: item.categoryNo } }">看同类商品</RouterLink>
-            </div>
-          </div>
-        </article>
-      </div>
-      <div class="product-side-panels">
-        <article class="showcase-panel">
-          <div class="panel-heading"><span>热门关注</span><strong>{{ hotItems.length }}</strong></div>
-          <button v-for="item in hotItems" :key="item.itemNo" class="mini-product" type="button" @click="openDetail(item)">
-            <img :src="defaultImage(item)" alt="" />
-            <span class="mini-product-main"><strong>{{ item.title }}</strong><span>{{ item.campusName }} · {{ item.condition }}</span></span>
-            <span class="mini-product-price">{{ money(item.sellPrice) }}</span>
-          </button>
-        </article>
-        <article class="showcase-panel">
-          <div class="panel-heading"><span>实惠专区</span><strong>{{ dealItems.length }}</strong></div>
-          <button v-for="item in dealItems" :key="item.itemNo" class="mini-product" type="button" @click="openDetail(item)">
-            <img :src="defaultImage(item)" alt="" />
-            <span class="mini-product-main"><strong>{{ item.title }}</strong><span>{{ item.campusName }} · {{ item.condition }}</span></span>
-            <span class="mini-product-price">{{ money(item.sellPrice) }}</span>
-          </button>
-        </article>
-      </div>
+    <div class="showcase-tabs">
+      <button
+        :class="['showcase-tab', activeCategory === null ? 'active' : '']"
+        type="button"
+        @click="activeCategory = null"
+      >全部</button>
+      <button
+        v-for="category in parentCategories"
+        :key="category.categoryNo"
+        :class="['showcase-tab', activeCategory === category.categoryNo ? 'active' : '']"
+        type="button"
+        @click="activeCategory = category.categoryNo"
+      >
+        {{ category.categoryName }}
+      </button>
     </div>
+    <div v-if="filteredShowcaseItems.length" class="showcase-grid">
+      <button v-for="item in filteredShowcaseItems" :key="item.itemNo" class="showcase-card" type="button" @click="openDetail(item)">
+        <div class="showcase-card-media">
+          <img :src="defaultImage(item)" :alt="item.title" />
+        </div>
+        <div class="showcase-card-body">
+          <strong class="showcase-card-title">{{ item.title }}</strong>
+          <div class="showcase-card-footer">
+            <span class="price">{{ money(item.sellPrice) }}</span>
+            <span class="showcase-fav-count">收藏 {{ item.favoriteCount || 0 }}</span>
+          </div>
+        </div>
+      </button>
+    </div>
+    <div v-else class="empty">该分类暂无商品</div>
   </section>
 
   <section class="intro-stats">
@@ -110,22 +85,6 @@
     <div class="glass-stat"><span>正在出售</span><strong>{{ common.dashboard?.onSaleCount || 0 }}</strong></div>
     <div class="glass-stat"><span>注册用户</span><strong>{{ common.dashboard?.userCount || 0 }}</strong></div>
     <div class="glass-stat"><span>成功订单</span><strong>{{ common.dashboard?.successOrderCount || 0 }}</strong></div>
-  </section>
-
-  <section v-if="latestItems.length" class="intro-gallery animate-in">
-    <div class="section-head">
-      <h2>商品橱窗</h2>
-      <RouterLink class="ghost-btn" to="/items">查看全部</RouterLink>
-    </div>
-    <div class="gallery-strip">
-      <button v-for="item in latestItems.slice(0, 4)" :key="item.itemNo" class="gallery-item" type="button" @click="openDetail(item)">
-        <img :src="defaultImage(item)" :alt="item.title" />
-        <span class="gallery-caption">
-          <strong>{{ item.title }}</strong>
-          <span>{{ money(item.sellPrice) }} · {{ item.condition }}</span>
-        </span>
-      </button>
-    </div>
   </section>
 
   <ItemDetailModal v-model="detailOpen" :item-no="activeItemNo" @changed="loadHome" />
@@ -138,19 +97,24 @@ import { searchItems } from "../api/modules/items.js";
 import ItemDetailModal from "../components/ItemDetailModal.vue";
 import { useCommonStore } from "../stores/common.js";
 import { useSessionStore } from "../stores/session.js";
-import { defaultImage, discountPercent, money, truncateText } from "../utils.js";
+import { defaultImage, money } from "../utils.js";
 
 const session = useSessionStore();
 const common = useCommonStore();
 
-const latestItems = ref([]);
 const hotItems = ref([]);
+const activeCategory = ref(null);
 const detailOpen = ref(false);
 const activeItemNo = ref(null);
 
-const featuredItems = computed(() => hotItems.value.slice(0, 2));
-const dealItems = computed(() => latestItems.value.filter((item) => Number(item.sellPrice) <= 100).slice(0, 4));
-const previewItems = computed(() => latestItems.value.slice(0, 4));
+const showcaseItems = computed(() => hotItems.value.slice(0, 8));
+const filteredShowcaseItems = computed(() => {
+  if (activeCategory.value === null) return showcaseItems.value;
+  return showcaseItems.value.filter(
+    (item) => item.categoryNo === activeCategory.value || item.parentCategoryNo === activeCategory.value
+  );
+});
+const previewItems = computed(() => hotItems.value.slice(0, 4));
 const parentCategories = computed(() => common.categories.filter((category) => !category.parentCategoryNo).slice(0, 8));
 
 function openDetail(item) {
@@ -160,12 +124,8 @@ function openDetail(item) {
 
 async function loadHome() {
   try {
-    const [latest, hot] = await Promise.all([
-      searchItems({ sort: "new" }),
-      searchItems({ sort: "hot" }),
-    ]);
-    latestItems.value = latest.items || [];
-    hotItems.value = hot.items || [];
+    const data = await searchItems({ sort: "hot" });
+    hotItems.value = data.items || [];
   } catch (error) {
     session.notify(error.message, true);
   }
@@ -360,110 +320,117 @@ onMounted(loadHome);
 .preview-dot:nth-of-type(2) { bottom: 28%; left: 10%; animation-delay: 0.8s; }
 .preview-dot:nth-of-type(3) { top: 62%; right: 6%; animation-delay: 1.6s; background: var(--accent-blue); }
 
-/* ===== Product Showcase ===== */
+/* ===== Product Showcase Grid ===== */
 .product-showcase {
-  padding: 22px;
+  padding: 26px;
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: var(--radius-lg);
   background: rgba(255, 255, 255, 0.68);
   box-shadow: var(--shadow-lg);
   backdrop-filter: blur(16px);
 }
-.product-showcase-layout { display: grid; align-items: start; grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr); gap: 18px; }
-.featured-product-stack { display: grid; gap: 18px; }
 
-.featured-product {
-  align-self: start;
-  overflow: hidden;
+.showcase-tabs {
   display: grid;
-  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.1fr);
-  min-height: 0;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: var(--shadow-lg);
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+  margin-bottom: 20px;
 }
-.featured-product-stack .featured-product { min-height: 0; }
-.featured-product-stack .featured-product-media { min-height: 220px; height: auto; }
-.featured-product-stack .featured-product-body { align-content: start; gap: 10px; padding: 18px; }
-.featured-product-stack .eyebrow, .featured-product-stack .product-metrics { display: none; }
-.featured-product-stack .featured-product-body h2 { font-size: clamp(22px, 2vw, 26px); }
-.featured-product-stack .featured-product-body p { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.featured-product-stack .actions { margin-top: 2px; }
-.featured-product-stack .actions .btn, .featured-product-stack .actions .ghost-btn { min-height: 38px; padding: 8px 14px; white-space: nowrap; }
-
-.featured-product-media {
-  position: relative;
-  overflow: hidden;
-  height: clamp(240px, 28vw, 320px);
-  background: linear-gradient(135deg, rgba(13, 148, 136, 0.12), rgba(59, 130, 246, 0.08)), #f8fafc;
-}
-.featured-product-media img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.35s ease; }
-.featured-product:hover .featured-product-media img { transform: scale(1.04); }
-
-.featured-badge {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 5px 11px;
+.showcase-tab {
+  min-height: 34px;
+  padding: 6px 16px;
+  border: 1px solid var(--line);
   border-radius: 999px;
+  background: #fff;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  white-space: nowrap;
+  text-align: center;
+}
+.showcase-tab:hover { border-color: rgba(13, 148, 136, 0.35); color: var(--primary-dark); }
+.showcase-tab.active {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
   color: #fff;
-  background: linear-gradient(135deg, var(--primary-light), var(--primary));
-  box-shadow: 0 8px 18px rgba(13, 148, 136, 0.22);
-  font-size: 12px;
-  font-weight: 850;
+  box-shadow: 0 6px 16px rgba(13, 148, 136, 0.22);
 }
-.featured-product-body { display: grid; align-content: center; gap: 13px; padding: 24px; }
-.featured-product-body h2, .featured-product-body p { margin: 0; }
-.featured-product-body h2 { font-size: clamp(24px, 2.4vw, 30px); line-height: 1.15; }
-.featured-product-body p { color: var(--muted); }
-.featured-price-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 9px; }
-.product-metrics { display: flex; flex-wrap: wrap; gap: 8px; }
-.product-metrics span { display: inline-flex; min-height: 26px; align-items: center; padding: 4px 10px; border-radius: 999px; color: var(--muted); background: var(--surface-soft); font-size: 12px; font-weight: 750; }
 
-.product-side-panels { display: grid; gap: 16px; }
-.showcase-panel {
+.showcase-grid {
   display: grid;
-  align-content: start;
-  gap: 13px;
-  padding: 18px;
-  border: 1px solid rgba(226, 232, 240, 0.92);
-  border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: var(--shadow-md);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
 }
-.panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.panel-heading span { color: var(--ink-soft); font-size: 15px; font-weight: 850; }
-.panel-heading strong { display: inline-grid; place-items: center; min-width: 30px; height: 30px; padding: 0 9px; border-radius: 999px; color: var(--primary-dark); background: #f0fdfa; font-size: 13px; }
 
-.mini-product-list { display: grid; gap: 10px; }
-.mini-product {
+.showcase-card {
+  overflow: hidden;
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 11px;
-  width: 100%;
-  padding: 9px;
+  grid-template-rows: 170px auto;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: #fff;
   color: var(--ink);
   text-align: left;
   box-shadow: var(--shadow-sm);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  cursor: pointer;
+  padding: 0;
+  min-width: 0;
 }
-.mini-product:hover { transform: translateY(-1px); border-color: rgba(13, 148, 136, 0.26); box-shadow: var(--shadow-md); }
-.mini-product img { width: 58px; height: 58px; border-radius: var(--radius-sm); object-fit: cover; background: var(--surface-soft); }
-.mini-product-main { display: grid; gap: 4px; min-width: 0; }
-.mini-product-main strong, .mini-product-main span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mini-product-main strong { font-size: 13px; font-weight: 850; }
-.mini-product-main span { color: var(--muted); font-size: 12px; font-weight: 650; }
-.mini-product-price { color: var(--accent-orange); font-weight: 850; white-space: nowrap; }
-.mini-empty { min-height: 82px; padding: 20px; }
+.showcase-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(13, 148, 136, 0.25);
+  box-shadow: var(--shadow-lg);
+}
 
-/* ===== Glass Stats ===== */
+.showcase-card-media {
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(13, 148, 136, 0.08), rgba(59, 130, 246, 0.06)), #f8fafc;
+}
+.showcase-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.35s ease;
+}
+.showcase-card:hover .showcase-card-media img { transform: scale(1.05); }
+
+.showcase-card-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px;
+}
+
+.showcase-card-title {
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.4;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.showcase-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.showcase-fav-count {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+/* ===== Stats Section ===== */
+.intro-stats { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 18px; }
 .glass-stat {
   position: relative;
   overflow: hidden;
@@ -479,88 +446,13 @@ onMounted(loadHome);
 .glass-stat span { display: block; color: var(--muted); font-size: 13px; font-weight: 700; }
 .glass-stat strong { display: block; margin-top: 8px; font-size: 32px; line-height: 1; font-weight: 850; letter-spacing: -0.02em; color: var(--ink); }
 
-/* ===== Feature Grid ===== */
-.intro-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
-.intro-feature {
-  position: relative;
-  overflow: hidden;
-  display: grid;
-  align-content: start;
-  gap: 14px;
-  min-height: 220px;
-  padding: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.6);
-  box-shadow: var(--shadow-md);
-  backdrop-filter: blur(16px);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-}
-.intro-feature:hover { transform: translateY(-5px); box-shadow: var(--shadow-xl); border-color: rgba(13, 148, 136, 0.2); }
-.intro-feature::after { content: ""; position: absolute; top: -40px; right: -40px; width: 120px; height: 120px; border-radius: 50%; background: radial-gradient(circle, rgba(13, 148, 136, 0.1), transparent 70%); }
-.feature-icon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 12px; background: linear-gradient(135deg, rgba(13, 148, 136, 0.12), rgba(59, 130, 246, 0.08)); color: var(--primary-dark); font-size: 20px; }
-.intro-feature span { color: var(--primary-dark); font-size: 12px; font-weight: 850; letter-spacing: 0.04em; }
-.intro-feature h2, .intro-feature p { margin: 0; }
-.intro-feature h2 { font-size: 20px; font-weight: 800; }
-.intro-feature p { color: var(--muted); line-height: 1.7; font-size: 14px; }
-
-/* ===== Gallery ===== */
-.intro-gallery {
-  padding: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.6);
-  box-shadow: var(--shadow-md);
-  backdrop-filter: blur(16px);
-}
-.gallery-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
-.gallery-item {
-  position: relative;
-  overflow: hidden;
-  display: block;
-  aspect-ratio: 16 / 10;
-  width: 100%;
-  padding: 0;
-  border: 1px solid rgba(226, 232, 240, 0.92);
-  border-radius: var(--radius-md);
-  color: inherit;
-  text-align: left;
-  background: #fff;
-  box-shadow: var(--shadow-sm);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-}
-.gallery-item:hover { transform: translateY(-4px) scale(1.02); box-shadow: var(--shadow-lg); }
-.gallery-item img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.35s ease; }
-.gallery-item:hover img { transform: scale(1.08); }
-.gallery-placeholder { width: 100%; height: 100%; display: grid; place-items: center; font-size: 36px; background: linear-gradient(135deg, rgba(13, 148, 136, 0.08), rgba(59, 130, 246, 0.06)); }
-.gallery-caption {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
-  display: grid;
-  gap: 3px;
-  padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.34);
-  border-radius: var(--radius-sm);
-  color: #fff;
-  background: rgba(15, 23, 42, 0.68);
-  backdrop-filter: blur(12px);
-}
-.gallery-caption strong, .gallery-caption span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gallery-caption strong { font-size: 14px; font-weight: 850; }
-.gallery-caption span { color: rgba(255, 255, 255, 0.78); font-size: 12px; font-weight: 750; }
-
 /* ===== Responsive ===== */
 @media (max-width: 980px) {
-  .intro-hero, .product-showcase-layout, .featured-product { grid-template-columns: 1fr; }
+  .intro-hero, .intro-stats { grid-template-columns: 1fr; }
   .intro-hero { min-height: auto; padding: 42px; }
   .intro-copy h1 { font-size: 46px; }
   .intro-stage { min-height: 420px; }
-  .intro-stats, .gallery-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .featured-product-media { height: 260px; }
-  .featured-product-stack .featured-product { height: auto; }
-  .featured-product-stack .featured-product-media { height: 240px; }
+  .showcase-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .preview-stage { max-width: 420px; }
   .preview-card { width: 180px; }
   .preview-card-tools { left: 0; top: 0; }
@@ -573,12 +465,11 @@ onMounted(loadHome);
   .preview-stage { max-width: 100%; aspect-ratio: 1 / 1.1; }
   .preview-card { position: relative; left: auto !important; right: auto !important; top: auto; bottom: auto; width: 100%; animation: none; }
   .preview-orbit, .preview-dot { display: none; }
-  .intro-grid, .intro-stats, .gallery-strip { grid-template-columns: 1fr; }
-  .mini-product { grid-template-columns: 52px minmax(0, 1fr); }
-  .mini-product-price { grid-column: 2; }
-}
-@media (max-width: 620px) {
-  .product-showcase, .intro-gallery { padding: 18px; }
-  .featured-product-body { padding: 20px; }
+  .intro-stats { grid-template-columns: 1fr; }
+  .product-showcase { padding: 18px; }
+  .showcase-tabs { gap: 6px; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+  .showcase-tab { padding: 5px 10px; font-size: 12px; }
+  .showcase-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .showcase-card { grid-template-rows: 140px auto; }
 }
 </style>

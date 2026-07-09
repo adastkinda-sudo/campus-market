@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="620" height="190" viewBox="0 0 620 190" role="img" aria-labelledby="title desc">
+  <title id="title">理物现代绿色字标预览</title>
+  <desc id="desc">理物绿色风格纯艺术字标志预览稿，未接入网站页面</desc>
+  <defs>
+    <linearGradient id="liwu-minimal-green" x1="88" y1="38" x2="488" y2="158" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#16a36f"/>
+      <stop offset="0.5" stop-color="#08785f"/>
+      <stop offset="1" stop-color="#06483d"/>
+    </linearGradient>
+    <linearGradient id="liwu-minimal-sheen" x1="84" y1="48" x2="430" y2="92" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#a7f3d0" stop-opacity="0.88"/>
+      <stop offset="0.5" stop-color="#ecfdf5" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#ecfdf5" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="minimal-lift" x="-6%" y="-14%" width="112%" height="130%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#052e2b" flood-opacity="0.11"/>
+    </filter>
+    <clipPath id="word-clip">
+      <text
+        x="74"
+        y="138"
+        transform="skewX(-3)"
+        font-family="Hiragino Sans GB, STHeiti, PingFang SC, Microsoft YaHei, sans-serif"
+        font-size="128"
+        font-weight="900"
+        letter-spacing="-2">理物</text>
+    </clipPath>
+  </defs>
+
+  <g filter="url(#minimal-lift)">
+    <text
+      x="74"
+      y="138"
+      transform="skewX(-3)"
+      fill="url(#liwu-minimal-green)"
+      font-family="Hiragino Sans GB, STHeiti, PingFang SC, Microsoft YaHei, sans-serif"
+      font-size="128"
+      font-weight="900"
+      letter-spacing="-2">理物</text>
+    <rect x="58" y="42" width="430" height="44" rx="22" fill="url(#liwu-minimal-sheen)" clip-path="url(#word-clip)"/>
+    <text
+      x="74"
+      y="138"
+      transform="skewX(-3)"
+      fill="none"
+      stroke="#0f766e"
+      stroke-width="1"
+      stroke-linejoin="round"
+      opacity="0.46"
+      font-family="Hiragino Sans GB, STHeiti, PingFang SC, Microsoft YaHei, sans-serif"
+      font-size="128"
+      font-weight="900"
+      letter-spacing="-2">理物</text>
+  </g>
+</svg>

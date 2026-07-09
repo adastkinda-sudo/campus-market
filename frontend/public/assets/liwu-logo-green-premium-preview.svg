@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="220" viewBox="0 0 680 220" role="img" aria-labelledby="title desc">
+  <title id="title">理物高级绿色艺术字预览</title>
+  <desc id="desc">理物绿色风格纯艺术字标志预览稿，未接入网站页面</desc>
+  <defs>
+    <linearGradient id="liwu-premium-green" x1="84" y1="36" x2="532" y2="170" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1fbf83"/>
+      <stop offset="0.45" stop-color="#0f8f6a"/>
+      <stop offset="1" stop-color="#064e3b"/>
+    </linearGradient>
+    <linearGradient id="liwu-premium-edge" x1="120" y1="42" x2="520" y2="174" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d1fae5"/>
+      <stop offset="0.48" stop-color="#76d9b4"/>
+      <stop offset="1" stop-color="#0f766e"/>
+    </linearGradient>
+    <filter id="liwu-soft-lift" x="-6%" y="-16%" width="112%" height="136%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="7" stdDeviation="5" flood-color="#022c22" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+
+  <g transform="skewX(-4)" filter="url(#liwu-soft-lift)">
+    <text
+      x="72"
+      y="154"
+      fill="#f8fffb"
+      stroke="#f8fffb"
+      stroke-width="10"
+      stroke-linejoin="round"
+      paint-order="stroke"
+      font-family="Songti SC, STSong, Songti, Hiragino Sans GB, STHeiti, serif"
+      font-size="142"
+      font-weight="900"
+      letter-spacing="-4">理物</text>
+    <text
+      x="72"
+      y="154"
+      fill="url(#liwu-premium-green)"
+      stroke="url(#liwu-premium-edge)"
+      stroke-width="2.6"
+      stroke-linejoin="round"
+      paint-order="stroke fill"
+      font-family="Songti SC, STSong, Songti, Hiragino Sans GB, STHeiti, serif"
+      font-size="142"
+      font-weight="900"
+      letter-spacing="-4">理物</text>
+    <text
+      x="76"
+      y="151"
+      fill="none"
+      stroke="#ecfdf5"
+      stroke-width="1.1"
+      stroke-linejoin="round"
+      opacity="0.38"
+      font-family="Songti SC, STSong, Songti, Hiragino Sans GB, STHeiti, serif"
+      font-size="142"
+      font-weight="900"
+      letter-spacing="-4">理物</text>
+  </g>
+</svg>

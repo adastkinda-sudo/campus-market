@@ -95,7 +95,7 @@
     <div :class="['auth-card animate-in', registerMode ? 'register-mode' : '']">
       <aside class="auth-brand-panel">
         <div>
-          <div class="auth-logo">CampusMarket</div>
+          <img class="auth-logo" src="/assets/liwu-logo.svg" alt="理物" />
           <div class="auth-line"></div>
         </div>
         <div class="auth-brand-copy">
@@ -352,13 +352,10 @@ onMounted(syncProfile);
   box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.25);
 }
 .auth-logo {
-  color: #fff;
-  font-size: clamp(26px, 3vw, 36px);
-  font-style: italic;
-  font-weight: 850;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  text-shadow: 0 10px 22px rgba(4, 35, 83, 0.14);
+  display: block;
+  width: min(176px, 100%);
+  height: auto;
+  filter: drop-shadow(0 10px 22px rgba(4, 35, 83, 0.14));
 }
 .auth-line {
   width: min(160px, 100%);
@@ -551,7 +548,7 @@ onMounted(syncProfile);
   .auth-brand-panel { min-height: 260px; padding: 28px; }
   .auth-form-panel { padding: 30px 18px; }
   .auth-fields.register { grid-template-columns: 1fr; }
-  .auth-logo { font-size: 38px; }
+  .auth-logo { width: min(180px, 100%); }
   .auth-brand-copy p { font-size: 15px; }
   .mine-grid { grid-template-columns: repeat(3, 1fr); }
   .orb-1, .orb-2 { display: none; }
