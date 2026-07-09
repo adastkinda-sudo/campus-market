@@ -551,34 +551,6 @@ onMounted(loadHome);
 .gallery-caption strong { font-size: 14px; font-weight: 850; }
 .gallery-caption span { color: rgba(255, 255, 255, 0.78); font-size: 12px; font-weight: 750; }
 
-/* ===== Dark Mode ===== */
-:global([data-theme="dark"]) .intro-hero,
-:global([data-theme="dark"]) .glass-stat,
-:global([data-theme="dark"]) .intro-feature,
-:global([data-theme="dark"]) .intro-gallery,
-:global([data-theme="dark"]) .product-showcase,
-:global([data-theme="dark"]) .featured-product,
-:global([data-theme="dark"]) .showcase-panel { background: rgba(15, 23, 42, 0.68); border-color: rgba(30, 41, 59, 0.8); }
-:global([data-theme="dark"]) .intro-hero::before { background: linear-gradient(90deg, rgba(13, 148, 136, 0.08) 1px, transparent 1px), linear-gradient(180deg, rgba(59, 130, 246, 0.06) 1px, transparent 1px); }
-:global([data-theme="dark"]) .intro-hero::after { background: radial-gradient(circle, rgba(20, 184, 166, 0.14), transparent 66%); }
-:global([data-theme="dark"]) .eyebrow { background: rgba(15, 23, 42, 0.6); border-color: rgba(13, 148, 136, 0.25); color: var(--primary-light); }
-:global([data-theme="dark"]) .intro-copy h1 { background: linear-gradient(135deg, var(--ink) 0%, var(--primary-light) 100%); -webkit-background-clip: text; background-clip: text; }
-:global([data-theme="dark"]) .preview-window,
-:global([data-theme="dark"]) .preview-row,
-:global([data-theme="dark"]) .preview-card,
-:global([data-theme="dark"]) .gallery-item,
-:global([data-theme="dark"]) .mini-product { background: rgba(15, 23, 42, 0.55); border-color: rgba(30, 41, 59, 0.8); }
-:global([data-theme="dark"]) .preview-window-top { background: rgba(15, 23, 42, 0.4); border-bottom-color: rgba(30, 41, 59, 0.7); }
-:global([data-theme="dark"]) .preview-thumb,
-:global([data-theme="dark"]) .gallery-placeholder { background: linear-gradient(135deg, rgba(13, 148, 136, 0.15), rgba(59, 130, 246, 0.12)), var(--surface-soft); }
-:global([data-theme="dark"]) .feature-icon,
-:global([data-theme="dark"]) .preview-card-icon { background: linear-gradient(135deg, rgba(20, 184, 166, 0.18), rgba(59, 130, 246, 0.12)); }
-:global([data-theme="dark"]) .featured-badge { box-shadow: none; }
-:global([data-theme="dark"]) .glass-stat strong,
-:global([data-theme="dark"]) .preview-row-title,
-:global([data-theme="dark"]) .preview-card strong,
-:global([data-theme="dark"]) .intro-feature h2 { color: var(--ink); }
-
 /* ===== Responsive ===== */
 @media (max-width: 980px) {
   .intro-hero, .product-showcase-layout, .featured-product { grid-template-columns: 1fr; }

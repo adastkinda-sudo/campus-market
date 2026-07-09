@@ -79,6 +79,19 @@
 
   <!-- 未登录 -->
   <section v-else class="auth-stage">
+    <RouterLink class="auth-back" to="/">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      返回首页
+    </RouterLink>
+
+    <!-- 背景装饰 -->
+    <div class="auth-bg">
+      <div class="auth-orb orb-1"></div>
+      <div class="auth-orb orb-2"></div>
+      <div class="auth-orb orb-3"></div>
+      <div class="auth-grid-pattern"></div>
+    </div>
+
     <div :class="['auth-card animate-in', registerMode ? 'register-mode' : '']">
       <aside class="auth-brand-panel">
         <div>
@@ -231,41 +244,101 @@ onMounted(syncProfile);
 <style scoped>
 /* ===== Auth Stage (Login/Register) ===== */
 .auth-stage {
-  position: fixed;
-  inset: 0;
-  z-index: 10;
+  position: relative;
+  min-height: 100vh;
   display: grid;
   place-items: center;
-  overflow: auto;
-  padding: 90px 18px 28px;
-  background: var(--bg);
+  padding: 28px 18px;
+  background:
+    radial-gradient(ellipse 80% 50% at 30% 20%, rgba(20, 184, 166, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 70% 80%, rgba(59, 130, 246, 0.06), transparent),
+    var(--bg);
+  overflow: hidden;
 }
-.auth-stage::before {
-  content: "";
+
+/* Back button */
+.auth-back {
   position: absolute;
-  z-index: -1;
+  top: 24px;
+  left: 28px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 650;
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(12px);
+  transition: all 0.18s ease;
+}
+.auth-back:hover { transform: translateY(-1px); border-color: var(--primary); color: var(--primary); box-shadow: var(--shadow-md); }
+
+/* Background decorations */
+.auth-bg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+.auth-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.75;
+}
+.orb-1 {
+  width: 600px;
+  height: 600px;
   top: -20%;
   right: -10%;
-  width: 520px;
-  height: 520px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(20, 184, 166, 0.12), transparent 66%);
-  filter: blur(20px);
-  pointer-events: none;
+  background: radial-gradient(circle, rgba(20, 184, 166, 0.35), rgba(13, 148, 136, 0.15) 40%, transparent 70%);
+  animation: orbFloat 8s ease-in-out infinite;
 }
+.orb-2 {
+  width: 500px;
+  height: 500px;
+  bottom: -15%;
+  left: -8%;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.3), rgba(37, 99, 235, 0.12) 40%, transparent 70%);
+  animation: orbFloat 10s ease-in-out infinite reverse;
+}
+.orb-3 {
+  width: 400px;
+  height: 400px;
+  top: 45%;
+  left: 55%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.25), rgba(124, 58, 237, 0.1) 40%, transparent 70%);
+  animation: orbFloat 12s ease-in-out infinite 2s;
+}
+@keyframes orbFloat {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(40px, -30px) scale(1.08); }
+  66% { transform: translate(-25px, 20px) scale(0.94); }
+}
+.auth-grid-pattern {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(13, 148, 136, 0.06) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(13, 148, 136, 0.06) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 80% 60% at center, rgba(0,0,0,0.55), transparent);
+}
+
 .auth-card {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(260px, 0.78fr) minmax(380px, 1fr);
-  width: min(900px, calc(100vw - 44px));
-  max-height: min(560px, calc(100vh - 120px));
+  grid-template-columns: minmax(280px, 0.78fr) minmax(420px, 1fr);
+  width: min(1020px, calc(100vw - 48px));
+  min-height: 580px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.8);
-  border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: var(--shadow-xl), var(--shadow-glow);
-  backdrop-filter: blur(26px);
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 25px 80px rgba(15, 23, 42, 0.12), var(--shadow-glow);
+  backdrop-filter: blur(28px);
 }
 
 /* Brand Panel */
@@ -462,27 +535,9 @@ onMounted(syncProfile);
 .account-panel textarea { min-height: 84px; }
 .account-panel .upload-box { min-height: 82px; }
 
-/* ===== Dark Mode ===== */
-:global([data-theme="dark"]) .auth-stage::before { background: radial-gradient(circle, rgba(20, 184, 166, 0.14), transparent 66%); }
-:global([data-theme="dark"]) .auth-card { background: rgba(15, 23, 42, 0.82); border-color: rgba(30, 41, 59, 0.85); }
-:global([data-theme="dark"]) .auth-form-panel { background: rgba(15, 23, 42, 0.58); }
-:global([data-theme="dark"]) .auth-brand-panel { color: #e2e8f0; background: linear-gradient(135deg, rgba(13, 148, 136, 0.45), rgba(15, 23, 42, 0.85)); box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.08); }
-:global([data-theme="dark"]) .auth-logo { color: #f1f5f9; text-shadow: 0 10px 22px rgba(0, 0, 0, 0.25); }
-:global([data-theme="dark"]) .auth-line { background: rgba(255, 255, 255, 0.35); box-shadow: none; }
-:global([data-theme="dark"]) .auth-brand-copy p { color: rgba(226, 232, 240, 0.72); }
-:global([data-theme="dark"]) .auth-footnote { color: rgba(148, 163, 184, 0.65); }
-:global([data-theme="dark"]) .auth-heading h2 { color: var(--ink); }
-:global([data-theme="dark"]) .auth-error { border-color: rgba(248, 113, 113, 0.32); background: rgba(239, 68, 68, 0.12); color: #fca5a5; }
-:global([data-theme="dark"]) .wizard-dot { background: var(--surface-soft); color: var(--muted); }
-:global([data-theme="dark"]) .wizard-step.active .wizard-dot { background: linear-gradient(135deg, var(--primary-light), var(--primary)); color: #fff; }
-:global([data-theme="dark"]) .wizard-label { color: var(--muted); }
-:global([data-theme="dark"]) .wizard-step.active .wizard-label { color: var(--primary-light); }
-:global([data-theme="dark"]) .wizard-line { background: var(--line-strong); }
-:global([data-theme="dark"]) .wizard-line.done { background: var(--primary); }
-:global([data-theme="dark"]) .mine-card { background: var(--surface); border-color: var(--line-strong); }
-
 /* ===== Responsive ===== */
 @media (max-width: 980px) {
+  .auth-back { top: 16px; left: 16px; }
   .auth-card { grid-template-columns: 1fr; min-height: auto; }
   .auth-stage { padding: 36px 18px; }
   .auth-card { width: min(720px, calc(100vw - 36px)); }
@@ -490,13 +545,15 @@ onMounted(syncProfile);
   .auth-form-panel { padding: 28px 24px; }
 }
 @media (max-width: 620px) {
+  .auth-back { top: 12px; left: 10px; padding: 7px 12px; font-size: 13px; }
   .auth-stage { padding: 22px 10px 34px; }
-  .auth-card { width: min(100% - 12px, 720px); max-height: calc(100vh - 44px); }
+  .auth-card { width: min(100% - 12px, 720px); min-height: auto; border-radius: 24px; }
   .auth-brand-panel { min-height: 260px; padding: 28px; }
   .auth-form-panel { padding: 30px 18px; }
   .auth-fields.register { grid-template-columns: 1fr; }
   .auth-logo { font-size: 38px; }
   .auth-brand-copy p { font-size: 15px; }
   .mine-grid { grid-template-columns: repeat(3, 1fr); }
+  .orb-1, .orb-2 { display: none; }
 }
 </style>

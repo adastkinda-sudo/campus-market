@@ -8,7 +8,6 @@ const PRINCIPAL_KEY = "campus-market-principal";
 export const useSessionStore = defineStore("session", () => {
   const token = ref(localStorage.getItem(TOKEN_KEY) || "");
   const principal = ref(JSON.parse(localStorage.getItem(PRINCIPAL_KEY) || "null"));
-  const theme = ref(localStorage.getItem("campus-market-theme") || "light");
   const unreadCount = ref(0);
   const notice = ref("");
   const noticeError = ref(false);
@@ -77,16 +76,9 @@ export const useSessionStore = defineStore("session", () => {
     notify("已退出登录");
   }
 
-  function setTheme(value) {
-    theme.value = value;
-    localStorage.setItem("campus-market-theme", value);
-    document.documentElement.dataset.theme = value;
-  }
-
   return {
     token,
     principal,
-    theme,
     unreadCount,
     notice,
     noticeError,
@@ -97,6 +89,5 @@ export const useSessionStore = defineStore("session", () => {
     loadMe,
     login,
     logout,
-    setTheme,
   };
 });

@@ -78,8 +78,6 @@ onUnmounted(() => {
 .float-icon { font-size: 18px; line-height: 1; }
 .float-text { font-size: 11px; }
 
-:global([data-theme="dark"]) .float-btn { background: var(--surface); border-color: var(--line-strong); }
-
 @media (max-width: 720px) {
   .side-float { right: 10px; bottom: 80px; }
   .float-btn { width: 44px; height: 44px; }

@@ -201,8 +201,6 @@ async function startChat() {
 .detail-body h2 { overflow-wrap: anywhere; }
 .seller-meta { margin: 0; }
 
-:global([data-theme="dark"]) .detail-media { background: var(--surface); border-color: var(--line); }
-
 @media (max-width: 980px) {
   .detail-layout { grid-template-columns: 1fr; }
   .detail-body .section-head { flex-direction: column; }

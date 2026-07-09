@@ -243,12 +243,6 @@ async function submitSearch() {
 
 .search-empty { margin: 0; padding: 14px; border: 1px dashed var(--line); border-radius: var(--radius-md); color: var(--muted); background: rgba(248, 250, 252, 0.78); font-size: 13px; font-weight: 750; text-align: center; }
 
-:global([data-theme="dark"]) .global-search,
-:global([data-theme="dark"]) .global-search-panel { border-color: rgba(30, 41, 59, 0.9); background: rgba(15, 23, 42, 0.9); }
-:global([data-theme="dark"]) .global-search-icon { color: var(--primary-light); background: rgba(20, 184, 166, 0.18); }
-:global([data-theme="dark"]) .search-result-row { border-color: var(--line); background: var(--surface); }
-:global([data-theme="dark"]) .search-empty { background: rgba(30, 41, 59, 0.72); }
-
 @media (max-width: 620px) {
   .global-search-shell { top: 74px; }
   .global-search { grid-template-columns: auto minmax(0, 1fr); border-radius: var(--radius-lg); }

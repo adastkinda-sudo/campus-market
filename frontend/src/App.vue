@@ -1,53 +1,57 @@
 <template>
-  <header class="topbar">
-    <RouterLink class="brand" to="/">
-      <span class="brand-mark">C2C</span>
-      <div>
-        <strong>华东理工大学校园二手交易系统</strong>
-      </div>
-    </RouterLink>
-
-    <form class="topbar-search" @submit.prevent="doSearch">
-      <div class="search-type">
-        <button :class="['type-btn', searchType === 'item' ? 'active' : '']" type="button" @click="searchType = 'item'">商品</button>
-        <button :class="['type-btn', searchType === 'user' ? 'active' : '']" type="button" @click="searchType = 'user'">用户</button>
-      </div>
-      <input
-        v-model="searchKeyword"
-        type="search"
-        :placeholder="searchType === 'item' ? '搜索商品名称、描述...' : '搜索用户昵称、姓名、学号...'"
-        autocomplete="off"
-      />
-      <button class="search-submit" type="submit">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-      </button>
-    </form>
-
-    <div class="topbar-actions">
-      <button class="icon-btn theme-toggle" type="button" title="切换深色模式" @click="toggleTheme">{{ session.theme === "dark" ? "☀️" : "🌙" }}</button>
-      <RouterLink class="mine-btn" to="/account">
-        <img v-if="session.principal?.avatarUrl" class="mine-avatar" :src="session.principal.avatarUrl" alt="" />
-        <span v-else class="mine-avatar-placeholder">{{ session.principal ? session.principal.nickname?.[0] : "我" }}</span>
-        <span class="mine-label">{{ session.principal ? "我的" : "登录" }}</span>
+  <template v-if="!isAuthPage">
+    <header class="topbar">
+      <RouterLink class="brand" to="/">
+        <span class="brand-mark">C2C</span>
+        <div>
+          <strong>华东理工大学校园二手交易系统</strong>
+        </div>
       </RouterLink>
-    </div>
-  </header>
 
-  <main class="shell">
-    <section v-if="session.notice" :class="['notice', session.noticeError ? 'error' : '']">{{ session.notice }}</section>
-    <RouterView />
-  </main>
+      <form class="topbar-search" @submit.prevent="doSearch">
+        <div class="search-type">
+          <button :class="['type-btn', searchType === 'item' ? 'active' : '']" type="button" @click="searchType = 'item'">商品</button>
+          <button :class="['type-btn', searchType === 'user' ? 'active' : '']" type="button" @click="searchType = 'user'">用户</button>
+        </div>
+        <input
+          v-model="searchKeyword"
+          type="search"
+          :placeholder="searchType === 'item' ? '搜索商品名称、描述...' : '搜索用户昵称、姓名、学号...'"
+          autocomplete="off"
+        />
+        <button class="search-submit" type="submit">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </button>
+      </form>
 
-  <SideFloat />
+      <div class="topbar-actions">
+        <RouterLink class="mine-btn" to="/account">
+          <img v-if="session.principal?.avatarUrl" class="mine-avatar" :src="session.principal.avatarUrl" alt="" />
+          <span v-else class="mine-avatar-placeholder">{{ session.principal ? session.principal.nickname?.[0] : "我" }}</span>
+          <span class="mine-label">{{ session.principal ? "我的" : "登录" }}</span>
+        </RouterLink>
+      </div>
+    </header>
+
+    <main class="shell">
+      <section v-if="session.notice" :class="['notice', session.noticeError ? 'error' : '']">{{ session.notice }}</section>
+      <RouterView />
+    </main>
+
+    <SideFloat />
+  </template>
+
+  <RouterView v-else />
 </template>
 
 <script setup>
-import { onMounted, ref } from "vue";
-import { RouterLink, RouterView, useRouter } from "vue-router";
+import { computed, onMounted, ref } from "vue";
+import { RouterLink, RouterView, useRoute, useRouter } from "vue-router";
 import SideFloat from "./components/SideFloat.vue";
 import { useCommonStore } from "./stores/common.js";
 import { useSessionStore } from "./stores/session.js";
 
+const route = useRoute();
 const router = useRouter();
 const session = useSessionStore();
 const common = useCommonStore();
@@ -55,9 +59,7 @@ const common = useCommonStore();
 const searchType = ref("item");
 const searchKeyword = ref("");
 
-function toggleTheme() {
-  session.setTheme(session.theme === "dark" ? "light" : "dark");
-}
+const isAuthPage = computed(() => route.path === "/account" && !session.principal);
 
 async function doSearch() {
   const kw = searchKeyword.value.trim();
@@ -70,7 +72,6 @@ async function doSearch() {
 }
 
 onMounted(async () => {
-  session.setTheme(session.theme);
   await session.loadMe();
   await common.loadCommon();
 });
@@ -163,7 +164,6 @@ onMounted(async () => {
 
 /* ===== Topbar Actions ===== */
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
-.theme-toggle { width: 40px; height: 40px; border-radius: 999px; }
 
 /* ===== Topbar Search ===== */
 .topbar-search {
@@ -251,18 +251,7 @@ onMounted(async () => {
 }
 .mine-label { font-size: 13px; font-weight: 650; }
 
-/* ===== Dark Mode ===== */
-:global([data-theme="dark"]) .topbar { border-bottom-color: rgba(30, 41, 59, 0.9); background: rgba(15, 23, 42, 0.78); }
-:global([data-theme="dark"]) #nav,
-:global([data-theme="dark"]) .topbar-actions nav { border-color: rgba(30, 41, 59, 0.9); background: rgba(30, 41, 59, 0.6); }
-:global([data-theme="dark"]) .nav-btn { color: var(--ink-soft); }
-:global([data-theme="dark"]) .nav-btn:hover { background: var(--surface); border-color: var(--line-strong); }
-:global([data-theme="dark"]) .nav-btn.active,
-:global([data-theme="dark"]) .nav-btn.router-link-active { color: #fff; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); }
-:global([data-theme="dark"]) .topbar-search { background: var(--surface); border-color: var(--primary-dark); }
-:global([data-theme="dark"]) .topbar-search:focus-within { box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.2); }
-:global([data-theme="dark"]) .mine-btn { background: var(--surface-soft); border-color: var(--line-strong); }
-
+/* ===== Responsive ===== */
 @media (max-width: 980px) {
   .topbar { align-items: flex-start; flex-direction: column; }
   #nav { justify-content: flex-start; width: 100%; }
