@@ -25,8 +25,11 @@ EXPECTED_TABLES = {
     "Wanted",
     "OrderSheet",
     "Message",
+    "PrivateConversation",
+    "PrivateMessage",
     "Review",
     "Report",
+    "Feedback",
 }
 
 EXPECTED_VIEWS = {
@@ -62,6 +65,20 @@ def check_schema(conn: sqlite3.Connection) -> None:
     missing_views = EXPECTED_VIEWS - views
     assert_true(not missing_tables, f"missing tables: {sorted(missing_tables)}")
     assert_true(not missing_views, f"missing views: {sorted(missing_views)}")
+    user_columns = {
+        row["name"]
+        for row in conn.execute("PRAGMA table_info(User)").fetchall()
+    }
+    expected_user_columns = {
+        "gender",
+        "entryYear",
+        "avatarUrl",
+        "bio",
+        "campusCardImageUrl",
+        "authSubmitTime",
+    }
+    missing_user_columns = expected_user_columns - user_columns
+    assert_true(not missing_user_columns, f"missing user columns: {sorted(missing_user_columns)}")
 
 
 def check_seed_data(conn: sqlite3.Connection) -> None:

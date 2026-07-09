@@ -4,37 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#0d9488" />
-    <meta name="description" content="面向学生、教职工与校友的校园二手物品交易系统" />
-    <title>校园二手物品交易系统</title>
-    <link rel="stylesheet" href="/styles.css" />
+    <meta name="description" content="面向华东理工大学徐汇校区与奉贤校区的校园二手物品交易系统" />
+    <title>华东理工大学校园二手交易系统</title>
   </head>
   <body>
-    <header class="topbar">
-      <div class="brand">
-        <span class="brand-mark">C2C</span>
-        <div>
-          <strong>校园二手物品交易系统</strong>
-          <span id="userBadge">游客浏览</span>
-        </div>
-      </div>
-      <div class="topbar-actions">
-        <button id="themeToggle" class="icon-btn theme-toggle" type="button" aria-label="切换深色模式" title="切换深色模式">🌙</button>
-        <nav id="nav"></nav>
-      </div>
-    </header>
-
-    <main class="shell">
-      <section id="notice" class="notice" hidden></section>
-      <section id="view" class="view"></section>
-    </main>
-
-    <div id="modal" class="modal" hidden>
-      <div class="modal-panel">
-        <button class="icon-btn modal-close" type="button" aria-label="关闭" onclick="closeModal()">×</button>
-        <div id="modalBody"></div>
-      </div>
-    </div>
-
-    <script src="/app.js"></script>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>

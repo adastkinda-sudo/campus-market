@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import base64
 import json
 import mimetypes
+import re
 import secrets
 import sqlite3
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
 from core import (
+    FRONTEND_DIST_DIR,
     FRONTEND_DIR,
     TOKENS,
     HttpError,
@@ -26,7 +30,28 @@ from core import (
     require_user_type,
     row_to_dict,
     rows_to_dicts,
+    uploads_dir,
 )
+
+
+ECUST_CAMPUSES = ("徐汇校区", "奉贤校区")
+IMAGE_DATA_RE = re.compile(r"^data:(image/(?:png|jpe?g|webp|gif));base64,(.+)$", re.IGNORECASE | re.DOTALL)
+IMAGE_EXTENSIONS = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+}
+UPLOAD_PURPOSES = {"avatar", "campus-card", "item", "feedback"}
+MAX_UPLOAD_BYTES = 3 * 1024 * 1024
+
+
+def require_ecust_campus(body: dict) -> str:
+    campus = require_text(body, "campusName", "校区", 20)
+    if campus not in ECUST_CAMPUSES:
+        raise HttpError(400, "校区只能选择徐汇校区或奉贤校区")
+    return campus
 
 
 class CampusMarketHandler(BaseHTTPRequestHandler):
@@ -59,7 +84,7 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
         if parsed.path.startswith("/api/"):
             self.handle_api(method, parsed)
         else:
-            self.serve_static(parsed.path)
+            self.serve_static(parsed.path, parsed.query)
 
     def read_json(self) -> dict:
         length = int(self.headers.get("Content-Length", "0"))
@@ -81,17 +106,34 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(payload)
 
-    def serve_static(self, request_path: str):
+    def serve_static(self, request_path: str, query_string: str = ""):
         path = unquote(request_path)
-        if path == "/":
-            file_path = FRONTEND_DIR / "index.html"
-        else:
-            file_path = (FRONTEND_DIR / path.lstrip("/")).resolve()
-            if not str(file_path).startswith(str(FRONTEND_DIR.resolve())):
+        if path.startswith("/uploads/"):
+            if path.startswith("/uploads/campus-card/") and not self.can_view_campus_card(path, query_string):
+                self.send_error(403)
+                return
+            file_path = (uploads_dir() / path.removeprefix("/uploads/")).resolve()
+            upload_root = uploads_dir().resolve()
+            if not str(file_path).startswith(str(upload_root)):
                 self.send_error(403)
                 return
             if not file_path.exists() or file_path.is_dir():
-                file_path = FRONTEND_DIR / "index.html"
+                self.send_error(404)
+                return
+        else:
+            if not (FRONTEND_DIST_DIR / "index.html").exists():
+                self.serve_missing_frontend_build()
+                return
+            static_root = FRONTEND_DIST_DIR
+            if path == "/":
+                file_path = static_root / "index.html"
+            else:
+                file_path = (static_root / path.lstrip("/")).resolve()
+            if not str(file_path).startswith(str(static_root.resolve())):
+                self.send_error(403)
+                return
+            if not file_path.exists() or file_path.is_dir():
+                file_path = static_root / "index.html"
 
         if not file_path.exists():
             self.send_error(404)
@@ -105,6 +147,63 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(content)))
         self.end_headers()
         self.wfile.write(content)
+
+    def serve_missing_frontend_build(self):
+        content = """
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>需要构建前端</title>
+    <style>
+      body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f8fafc; color: #0f172a; }
+      main { max-width: 720px; margin: 12vh auto; padding: 32px; background: white; border: 1px solid #e2e8f0; border-radius: 18px; box-shadow: 0 18px 50px rgba(15, 23, 42, .08); }
+      h1 { margin: 0 0 12px; font-size: 28px; }
+      p { line-height: 1.7; color: #475569; }
+      pre { overflow: auto; padding: 16px; border-radius: 12px; background: #0f172a; color: #e2e8f0; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>前端还没有构建</h1>
+      <p>当前项目已迁移到 Vue 3 + Vite。直接启动 Python 后端前，需要先生成 <code>frontend/dist</code>，否则浏览器不能直接运行 Vue 源码。</p>
+      <pre>cd frontend
+npm install
+npm run build
+cd ..
+python3 backend/app.py</pre>
+      <p>开发联调时也可以同时运行 Python 后端和 <code>npm run dev</code>，然后访问 Vite 显示的地址。</p>
+    </main>
+  </body>
+</html>
+""".strip().encode("utf-8")
+        self.send_response(503)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(content)))
+        self.end_headers()
+        self.wfile.write(content)
+
+    def can_view_campus_card(self, upload_path: str, query_string: str) -> bool:
+        auth = self.headers.get("Authorization", "")
+        token = auth[7:].strip() if auth.startswith("Bearer ") else ""
+        if not token:
+            token = (parse_qs(query_string).get("token") or [""])[0]
+        principal = TOKENS.get(token)
+        if not principal:
+            return False
+        if principal["kind"] == "admin":
+            return True
+        conn = connect()
+        try:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM [User] WHERE userNo = ? AND campusCardImageUrl = ?",
+                (principal["id"], upload_path),
+            ).fetchone()
+            return bool(row and row[0])
+        finally:
+            conn.close()
 
     def handle_api(self, method: str, parsed):
         segments = [unquote(part) for part in parsed.path.strip("/").split("/")[1:]]
@@ -133,13 +232,23 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
 
     def route_api(self, conn: sqlite3.Connection, method: str, segments: list[str], query, body: dict):
         if not segments:
-            return {"name": "校园二手物品交易系统", "time": now_text()}
+            return {"name": "华东理工大学校园二手交易系统", "time": now_text()}
 
         root = segments[0]
         if root == "auth":
             return self.route_auth(conn, method, segments, body)
         if root == "me" and method == "GET":
             return {"principal": self.current_principal(conn, required=False)}
+        if root == "me" and method == "PUT":
+            return self.update_my_profile(conn, body)
+        if root == "uploads":
+            return self.route_uploads(conn, method, segments, body)
+        if root == "users":
+            return self.route_users(conn, method, segments, query)
+        if root == "chats":
+            return self.route_chats(conn, method, segments, body)
+        if root == "contact":
+            return self.route_contact(conn, method, segments, body)
         if root == "dashboard" and method == "GET":
             return self.get_dashboard(conn)
         if root == "categories":
@@ -187,8 +296,9 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
         else:
             row = conn.execute(
                 """
-                SELECT userNo, studentNo, realName, nickname, userType, phone, wechat, authStatus,
-                       creditScore, status, registerTime
+                SELECT userNo, studentNo, realName, nickname, userType, phone, wechat,
+                       gender, entryYear, avatarUrl, bio, campusCardImageUrl, authSubmitTime,
+                       authStatus, creditScore, status, registerTime
                 FROM [User]
                 WHERE userNo = ?
                 """,
@@ -219,6 +329,21 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
         if user["creditScore"] < 60:
             raise HttpError(403, "信用积分低于 60，暂时不能发布物品或下单")
         return user
+
+    def public_user_dict(self, user: dict) -> dict:
+        return {
+            "userNo": user.get("userNo"),
+            "nickname": user.get("nickname"),
+            "userType": user.get("userType"),
+            "authStatus": user.get("authStatus"),
+            "creditScore": user.get("creditScore"),
+            "status": user.get("status"),
+            "gender": user.get("gender") or "保密",
+            "entryYear": user.get("entryYear"),
+            "avatarUrl": user.get("avatarUrl"),
+            "bio": user.get("bio"),
+            "registerTime": user.get("registerTime"),
+        }
 
     def route_auth(self, conn: sqlite3.Connection, method: str, segments: list[str], body: dict):
         if len(segments) == 2 and segments[1] == "register" and method == "POST":
@@ -258,6 +383,7 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
             user = conn.execute(
                 """
                 SELECT userNo, studentNo, realName, nickname, userType, phone, wechat,
+                       gender, entryYear, avatarUrl, bio, campusCardImageUrl, authSubmitTime,
                        authStatus, creditScore, status, registerTime
                 FROM [User]
                 WHERE (studentNo = ? OR phone = ? OR nickname = ?) AND password = ?
@@ -282,11 +408,350 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
             user = self.require_user(conn)
             if user["authStatus"] == "已认证":
                 return {"message": "已通过认证，无需重复提交"}
+            campus_card = require_text(body, "campusCardImageUrl", "校园卡照片", 500)
+            gender = optional_text(body, "gender", 10) or user.get("gender") or "保密"
+            if gender not in {"男", "女", "其他", "保密"}:
+                raise HttpError(400, "性别选项不合法")
+            entry_year = optional_text(body, "entryYear", 20)
+            bio = optional_text(body, "bio", 160)
+            avatar_url = optional_text(body, "avatarUrl", 500)
+            phone = optional_text(body, "phone", 30)
+            wechat = optional_text(body, "wechat", 50)
             with conn:
-                conn.execute("UPDATE [User] SET authStatus = '待审核' WHERE userNo = ?", (user["userNo"],))
+                conn.execute(
+                    """
+                    UPDATE [User]
+                       SET authStatus = '待审核',
+                           gender = ?,
+                           entryYear = ?,
+                           bio = ?,
+                           avatarUrl = COALESCE(?, avatarUrl),
+                           phone = COALESCE(?, phone),
+                           wechat = COALESCE(?, wechat),
+                           campusCardImageUrl = ?,
+                           authSubmitTime = ?
+                     WHERE userNo = ?
+                    """,
+                    (gender, entry_year, bio, avatar_url, phone, wechat, campus_card, now_text(), user["userNo"]),
+                )
             return {"message": "认证申请已提交，等待管理员审核"}
 
         raise HttpError(404, "认证接口不存在")
+
+    def route_uploads(self, conn: sqlite3.Connection, method: str, segments: list[str], body: dict):
+        self.require_user(conn)
+        if method != "POST" or len(segments) != 1:
+            raise HttpError(404, "上传接口不存在")
+        purpose = optional_text(body, "purpose", 30) or "item"
+        if purpose not in UPLOAD_PURPOSES:
+            raise HttpError(400, "上传用途不合法")
+        data_url = require_text(body, "dataUrl", "图片文件", MAX_UPLOAD_BYTES * 2)
+        match = IMAGE_DATA_RE.match(data_url)
+        if not match:
+            raise HttpError(400, "请上传 png、jpg、webp 或 gif 图片")
+        mime_type = match.group(1).lower()
+        try:
+            payload = base64.b64decode(match.group(2), validate=True)
+        except ValueError:
+            raise HttpError(400, "图片编码不合法")
+        if len(payload) > MAX_UPLOAD_BYTES:
+            raise HttpError(400, "图片不能超过 3MB")
+        target_dir = uploads_dir() / purpose
+        target_dir.mkdir(parents=True, exist_ok=True)
+        extension = IMAGE_EXTENSIONS.get(mime_type, ".png")
+        filename = f"{uuid.uuid4().hex}{extension}"
+        target_path = target_dir / filename
+        target_path.write_bytes(payload)
+        return {"url": f"/uploads/{purpose}/{filename}", "message": "图片已上传"}
+
+    def update_my_profile(self, conn: sqlite3.Connection, body: dict):
+        user = self.require_user(conn)
+        nickname = require_text(body, "nickname", "昵称", 40)
+        gender = optional_text(body, "gender", 10) or "保密"
+        if gender not in {"男", "女", "其他", "保密"}:
+            raise HttpError(400, "性别选项不合法")
+        entry_year = optional_text(body, "entryYear", 20)
+        avatar_url = optional_text(body, "avatarUrl", 500)
+        bio = optional_text(body, "bio", 160)
+        phone = optional_text(body, "phone", 30)
+        wechat = optional_text(body, "wechat", 50)
+        with conn:
+            conn.execute(
+                """
+                UPDATE [User]
+                   SET nickname = ?,
+                       gender = ?,
+                       entryYear = ?,
+                       avatarUrl = ?,
+                       bio = ?,
+                       phone = ?,
+                       wechat = ?
+                 WHERE userNo = ?
+                """,
+                (nickname, gender, entry_year, avatar_url, bio, phone, wechat, user["userNo"]),
+            )
+        return {"message": "个人资料已更新", "principal": self.current_principal(conn)}
+
+    def route_users(self, conn: sqlite3.Connection, method: str, segments: list[str], query):
+        if method != "GET":
+            raise HttpError(405, "用户接口不支持该操作")
+        if len(segments) == 1:
+            keyword = get_query(query, "keyword")
+            params: list = []
+            where = "status = '正常'"
+            if keyword:
+                where += " AND (nickname LIKE ? OR realName LIKE ? OR studentNo LIKE ?)"
+                like = f"%{keyword}%"
+                params.extend([like, like, like])
+            rows = conn.execute(
+                f"""
+                SELECT userNo, nickname, userType, authStatus, creditScore, status,
+                       gender, entryYear, avatarUrl, bio, registerTime
+                FROM [User]
+                WHERE {where}
+                ORDER BY authStatus = '已认证' DESC, creditScore DESC, registerTime DESC
+                LIMIT 30
+                """,
+                params,
+            ).fetchall()
+            return {"users": [self.public_user_dict(row_to_dict(row)) for row in rows]}
+
+        if len(segments) == 2:
+            user_no = int(segments[1])
+            row = conn.execute(
+                """
+                SELECT userNo, nickname, userType, authStatus, creditScore, status,
+                       gender, entryYear, avatarUrl, bio, registerTime
+                FROM [User]
+                WHERE userNo = ? AND status = '正常'
+                """,
+                (user_no,),
+            ).fetchone()
+            if not row:
+                raise HttpError(404, "用户不存在")
+            item_rows = conn.execute(
+                """
+                SELECT *
+                FROM V_Item_Detail
+                WHERE sellerNo = ?
+                  AND visible = 1
+                  AND status IN ('在售', '交易中', '已售出')
+                ORDER BY publishTime DESC, itemNo DESC
+                """,
+                (user_no,),
+            ).fetchall()
+            message_rows = conn.execute(
+                """
+                SELECT m.*, i.title AS itemTitle, i.itemNo, u.nickname AS userName
+                FROM Message m
+                JOIN Item i ON i.itemNo = m.itemNo
+                JOIN [User] u ON u.userNo = m.userNo
+                WHERE i.sellerNo = ?
+                  AND i.visible = 1
+                ORDER BY m.msgTime DESC, m.messageNo DESC
+                LIMIT 30
+                """,
+                (user_no,),
+            ).fetchall()
+            return {
+                "user": self.public_user_dict(row_to_dict(row)),
+                "items": rows_to_dicts(item_rows),
+                "messages": rows_to_dicts(message_rows),
+            }
+
+        raise HttpError(404, "用户接口不存在")
+
+    def route_chats(self, conn: sqlite3.Connection, method: str, segments: list[str], body: dict):
+        user = self.require_verified_user(conn)
+        if method == "GET" and len(segments) == 1:
+            rows = conn.execute(
+                """
+                SELECT
+                    pc.*,
+                    other_user.nickname AS otherName,
+                    other_user.userType AS otherUserType,
+                    other_user.avatarUrl AS otherAvatarUrl,
+                    other_user.authStatus AS otherAuthStatus,
+                    i.title AS relatedItemTitle,
+                    (
+                        SELECT pm.content
+                        FROM PrivateMessage pm
+                        WHERE pm.conversationNo = pc.conversationNo
+                        ORDER BY pm.sendTime DESC, pm.privateMessageNo DESC
+                        LIMIT 1
+                    ) AS lastContent,
+                    (
+                        SELECT pm.sendTime
+                        FROM PrivateMessage pm
+                        WHERE pm.conversationNo = pc.conversationNo
+                        ORDER BY pm.sendTime DESC, pm.privateMessageNo DESC
+                        LIMIT 1
+                    ) AS lastTime,
+                    (
+                        SELECT COUNT(*)
+                        FROM PrivateMessage pm
+                        WHERE pm.conversationNo = pc.conversationNo
+                          AND pm.senderNo <> ?
+                          AND pm.isRead = 0
+                    ) AS unreadCount
+                FROM PrivateConversation pc
+                JOIN [User] other_user
+                  ON other_user.userNo = CASE
+                    WHEN pc.userOneNo = ? THEN pc.userTwoNo
+                    ELSE pc.userOneNo
+                  END
+                LEFT JOIN Item i ON i.itemNo = pc.relatedItemNo
+                WHERE pc.userOneNo = ? OR pc.userTwoNo = ?
+                ORDER BY pc.updateTime DESC, pc.conversationNo DESC
+                """,
+                (user["userNo"], user["userNo"], user["userNo"], user["userNo"]),
+            ).fetchall()
+            return {"conversations": rows_to_dicts(rows)}
+
+        if method == "POST" and len(segments) == 1:
+            target_no = int_value(body, "targetUserNo", "私聊对象")
+            if target_no == user["userNo"]:
+                raise HttpError(400, "不能和自己私聊")
+            target = conn.execute(
+                "SELECT userNo, nickname, authStatus, status FROM [User] WHERE userNo = ?",
+                (target_no,),
+            ).fetchone()
+            if not target or target["status"] != "正常":
+                raise HttpError(404, "私聊对象不存在")
+            if target["authStatus"] != "已认证":
+                raise HttpError(403, "只能和已认证用户私聊")
+            related_item_no = body.get("relatedItemNo")
+            related_item_no = int(related_item_no) if related_item_no not in (None, "") else None
+            if related_item_no:
+                item = conn.execute("SELECT itemNo FROM Item WHERE itemNo = ? AND visible = 1", (related_item_no,)).fetchone()
+                if not item:
+                    raise HttpError(404, "关联物品不存在")
+            user_one, user_two = sorted((user["userNo"], target_no))
+            if related_item_no:
+                existing = conn.execute(
+                    """
+                    SELECT conversationNo
+                    FROM PrivateConversation
+                    WHERE userOneNo = ? AND userTwoNo = ? AND relatedItemNo = ?
+                    """,
+                    (user_one, user_two, related_item_no),
+                ).fetchone()
+            else:
+                existing = conn.execute(
+                    """
+                    SELECT conversationNo
+                    FROM PrivateConversation
+                    WHERE userOneNo = ? AND userTwoNo = ? AND relatedItemNo IS NULL
+                    """,
+                    (user_one, user_two),
+                ).fetchone()
+            if existing:
+                return {"conversationNo": existing["conversationNo"], "message": "会话已存在"}
+            with conn:
+                conn.execute(
+                    """
+                    INSERT INTO PrivateConversation(userOneNo, userTwoNo, relatedItemNo, updateTime)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (user_one, user_two, related_item_no, now_text()),
+                )
+            row = conn.execute(
+                """
+                SELECT MAX(conversationNo) AS conversationNo
+                FROM PrivateConversation
+                WHERE userOneNo = ? AND userTwoNo = ?
+                """,
+                (user_one, user_two),
+            ).fetchone()
+            return {"conversationNo": row["conversationNo"], "message": "私聊已创建"}
+
+        if len(segments) >= 2:
+            conversation_no = int(segments[1])
+            conversation = conn.execute(
+                "SELECT * FROM PrivateConversation WHERE conversationNo = ?",
+                (conversation_no,),
+            ).fetchone()
+            if not conversation:
+                raise HttpError(404, "会话不存在")
+            if user["userNo"] not in {conversation["userOneNo"], conversation["userTwoNo"]}:
+                raise HttpError(403, "只能查看自己的私聊")
+            other_no = conversation["userTwoNo"] if conversation["userOneNo"] == user["userNo"] else conversation["userOneNo"]
+
+            if method == "GET" and len(segments) == 3 and segments[2] == "messages":
+                with conn:
+                    conn.execute(
+                        "UPDATE PrivateMessage SET isRead = 1 WHERE conversationNo = ? AND senderNo <> ?",
+                        (conversation_no, user["userNo"]),
+                    )
+                other = conn.execute(
+                    "SELECT userNo, nickname, userType, avatarUrl, authStatus FROM [User] WHERE userNo = ?",
+                    (other_no,),
+                ).fetchone()
+                rows = conn.execute(
+                    """
+                    SELECT pm.*, u.nickname AS senderName, u.avatarUrl AS senderAvatarUrl
+                    FROM PrivateMessage pm
+                    JOIN [User] u ON u.userNo = pm.senderNo
+                    WHERE pm.conversationNo = ?
+                    ORDER BY pm.sendTime ASC, pm.privateMessageNo ASC
+                    """,
+                    (conversation_no,),
+                ).fetchall()
+                return {
+                    "conversation": row_to_dict(conversation),
+                    "otherUser": row_to_dict(other),
+                    "messages": rows_to_dicts(rows),
+                }
+
+            if method == "POST" and len(segments) == 3 and segments[2] == "messages":
+                content = require_text(body, "content", "私聊内容", 1000)
+                with conn:
+                    conn.execute(
+                        "INSERT INTO PrivateMessage(conversationNo, senderNo, content) VALUES (?, ?, ?)",
+                        (conversation_no, user["userNo"], content),
+                    )
+                    conn.execute(
+                        "UPDATE PrivateConversation SET updateTime = ? WHERE conversationNo = ?",
+                        (now_text(), conversation_no),
+                    )
+                    create_notification(
+                        conn,
+                        other_no,
+                        "收到新的私聊消息",
+                        f"{user['nickname']}：{content[:40]}",
+                        "chat",
+                        conversation_no,
+                    )
+                return {"message": "消息已发送"}
+
+        raise HttpError(404, "私聊接口不存在")
+
+    def route_contact(self, conn: sqlite3.Connection, method: str, segments: list[str], body: dict):
+        user = self.require_user(conn)
+        if method == "POST" and len(segments) == 1:
+            title = require_text(body, "title", "反馈标题", 80)
+            content = require_text(body, "content", "反馈内容", 1200)
+            with conn:
+                conn.execute(
+                    "INSERT INTO Feedback(userNo, title, content) VALUES (?, ?, ?)",
+                    (user["userNo"], title, content),
+                )
+            return {"message": "反馈已提交，管理员会尽快回复"}
+
+        if method == "GET" and len(segments) == 2 and segments[1] == "mine":
+            rows = conn.execute(
+                """
+                SELECT f.*, a.username AS adminName
+                FROM Feedback f
+                LEFT JOIN Admin a ON a.adminNo = f.adminNo
+                WHERE f.userNo = ?
+                ORDER BY f.createTime DESC, f.feedbackNo DESC
+                """,
+                (user["userNo"],),
+            ).fetchall()
+            return {"feedback": rows_to_dicts(rows)}
+
+        raise HttpError(404, "反馈接口不存在")
 
     def get_dashboard(self, conn: sqlite3.Connection):
         return {
@@ -362,40 +827,51 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
 
     def route_locations(self, conn: sqlite3.Connection, method: str, segments: list[str], body: dict):
         if method == "GET" and len(segments) == 1:
-            rows = conn.execute("SELECT * FROM Location ORDER BY campusName, locationNo").fetchall()
+            rows = conn.execute(
+                """
+                SELECT * FROM Location
+                ORDER BY
+                    CASE campusName
+                        WHEN '徐汇校区' THEN 1
+                        WHEN '奉贤校区' THEN 2
+                        ELSE 3
+                    END,
+                    locationNo
+                """
+            ).fetchall()
             return {"locations": rows_to_dicts(rows)}
 
         if method == "POST" and len(segments) == 1:
             self.require_admin(conn)
-            name = require_text(body, "locationName", "地点名称", 60)
-            campus = require_text(body, "campusName", "校区", 60)
+            campus = require_ecust_campus(body)
+            name = "具体地点私聊确定"
             with conn:
                 conn.execute("INSERT INTO Location(locationName, campusName) VALUES (?, ?)", (name, campus))
-            return {"message": "交易地点已添加"}
+            return {"message": "交易校区已添加"}
 
         if len(segments) == 2 and method == "PUT":
             self.require_admin(conn)
             location_no = int(segments[1])
-            name = require_text(body, "locationName", "地点名称", 60)
-            campus = require_text(body, "campusName", "校区", 60)
+            campus = require_ecust_campus(body)
+            name = "具体地点私聊确定"
             with conn:
                 conn.execute(
                     "UPDATE Location SET locationName = ?, campusName = ? WHERE locationNo = ?",
                     (name, campus, location_no),
                 )
-            return {"message": "交易地点已更新"}
+            return {"message": "交易校区已更新"}
 
         if len(segments) == 2 and method == "DELETE":
             self.require_admin(conn)
             location_no = int(segments[1])
             used = conn.execute("SELECT COUNT(*) FROM OrderSheet WHERE locationNo = ?", (location_no,)).fetchone()[0]
             if used:
-                raise HttpError(409, "该地点已有订单使用，不能删除")
+                raise HttpError(409, "该校区已有订单使用，不能删除")
             with conn:
                 conn.execute("DELETE FROM Location WHERE locationNo = ?", (location_no,))
-            return {"message": "交易地点已删除"}
+            return {"message": "交易校区已删除"}
 
-        raise HttpError(404, "地点接口不存在")
+        raise HttpError(404, "校区接口不存在")
 
     def route_announcements(self, conn: sqlite3.Connection, method: str, segments: list[str], body: dict):
         if method == "GET" and len(segments) == 1:
@@ -454,6 +930,7 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
     def list_items(self, conn: sqlite3.Connection, query):
         keyword = get_query(query, "keyword")
         category = get_query(query, "categoryNo")
+        campus = get_query(query, "campusName")
         status = get_query(query, "status", "在售")
         sort = get_query(query, "sort", "new")
         clauses = ["visible = 1"]
@@ -463,12 +940,17 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
             clauses.append("status = ?")
             params.append(status)
         if keyword:
-            clauses.append("(title LIKE ? OR description LIKE ? OR sellerName LIKE ?)")
+            clauses.append("(title LIKE ? OR description LIKE ? OR sellerName LIKE ? OR campusName LIKE ? OR categoryName LIKE ? OR parentCategoryName LIKE ?)")
             like = f"%{keyword}%"
-            params.extend([like, like, like])
+            params.extend([like, like, like, like, like, like])
         if category:
             clauses.append("(categoryNo = ? OR parentCategoryNo = ?)")
             params.extend([int(category), int(category)])
+        if campus:
+            if campus not in ECUST_CAMPUSES:
+                raise HttpError(400, "校区只能选择徐汇校区或奉贤校区")
+            clauses.append("campusName = ?")
+            params.append(campus)
 
         order_sql = {
             "price_asc": "sellPrice ASC, publishTime DESC",
@@ -502,6 +984,7 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
         title = require_text(body, "title", "物品标题", 80)
         description = require_text(body, "description", "物品描述", 1200)
         category_no = int_value(body, "categoryNo", "分类")
+        campus = require_ecust_campus(body)
         original_price = number_value(body, "originalPrice", "原价")
         sell_price = number_value(body, "sellPrice", "二手价")
         condition = require_text(body, "condition", "新旧程度", 20)
@@ -511,10 +994,10 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
         with conn:
             conn.execute(
                 """
-                INSERT INTO Item(sellerNo, categoryNo, title, description, originalPrice, sellPrice, condition, imageUrl)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO Item(sellerNo, categoryNo, campusName, title, description, originalPrice, sellPrice, condition, imageUrl)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (user["userNo"], category_no, title, description, original_price, sell_price, condition, image_url),
+                (user["userNo"], category_no, campus, title, description, original_price, sell_price, condition, image_url),
             )
         return {"message": "物品已发布"}
 
@@ -572,6 +1055,7 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
         title = require_text(body, "title", "物品标题", 80)
         description = require_text(body, "description", "物品描述", 1200)
         category_no = int_value(body, "categoryNo", "分类")
+        campus = require_ecust_campus(body)
         original_price = number_value(body, "originalPrice", "原价")
         sell_price = number_value(body, "sellPrice", "二手价")
         condition = require_text(body, "condition", "新旧程度", 20)
@@ -580,11 +1064,11 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
             conn.execute(
                 """
                 UPDATE Item
-                   SET categoryNo = ?, title = ?, description = ?, originalPrice = ?,
+                   SET categoryNo = ?, campusName = ?, title = ?, description = ?, originalPrice = ?,
                        sellPrice = ?, condition = ?, imageUrl = ?
                  WHERE itemNo = ?
                 """,
-                (category_no, title, description, original_price, sell_price, condition, image_url, item_no),
+                (category_no, campus, title, description, original_price, sell_price, condition, image_url, item_no),
             )
         return {"message": "物品信息已更新"}
 
@@ -607,7 +1091,8 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
                     "UPDATE OrderSheet SET orderStatus = '已取消', finishTime = ? WHERE itemNo = ? AND orderStatus IN ('待卖家确认', '待面交')",
                     (now_text(), item_no),
                 )
-            conn.execute("UPDATE Item SET status = ?, visible = 1 WHERE itemNo = ?", (status, item_no))
+            visible = 0 if status == "已下架" else 1
+            conn.execute("UPDATE Item SET status = ?, visible = ? WHERE itemNo = ?", (status, visible, item_no))
         return {"message": "物品状态已更新"}
 
     def delete_item(self, conn: sqlite3.Connection, item_no: int):
@@ -701,7 +1186,7 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
 
     def create_order(self, conn: sqlite3.Connection, item_no: int, body: dict):
         user = self.require_verified_user(conn)
-        location_no = int_value(body, "locationNo", "交易地点")
+        location_no = int_value(body, "locationNo", "交易校区")
         meet_time = require_text(body, "meetTime", "交易时间", 40)
         try:
             conn.execute("BEGIN IMMEDIATE")
@@ -717,7 +1202,7 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
                 raise HttpError(409, "该物品当前不可购买")
             location_exists = conn.execute("SELECT COUNT(*) FROM Location WHERE locationNo = ?", (location_no,)).fetchone()[0]
             if not location_exists:
-                raise HttpError(400, "交易地点不存在")
+                raise HttpError(400, "交易校区不存在")
             conn.execute(
                 """
                 INSERT INTO OrderSheet(buyerNo, itemNo, locationNo, orderAmount, meetTime)
@@ -810,7 +1295,7 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
         if action == "confirm":
             notify_user_no = order["buyerNo"]
             notify_title = "卖家已确认订单"
-            notify_content = f"卖家已确认「{order['itemTitle']}」的交易，请按约定时间地点面交。"
+            notify_content = f"卖家已确认「{order['itemTitle']}」的交易，请按约定校区交易，并通过私聊确认具体地点。"
         elif action == "reject":
             notify_user_no = order["buyerNo"]
             notify_title = "卖家已拒绝订单"
@@ -996,7 +1481,9 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
         if len(segments) == 2 and segments[1] == "auth-requests" and method == "GET":
             rows = conn.execute(
                 """
-                SELECT userNo, studentNo, realName, nickname, userType, phone, wechat, authStatus, creditScore, registerTime
+                SELECT userNo, studentNo, realName, nickname, userType, phone, wechat,
+                       gender, entryYear, avatarUrl, bio, campusCardImageUrl, authSubmitTime,
+                       authStatus, creditScore, registerTime
                 FROM [User]
                 WHERE authStatus = '待审核'
                 ORDER BY registerTime ASC
@@ -1037,6 +1524,7 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
             rows = conn.execute(
                 """
                 SELECT userNo, studentNo, realName, nickname, userType, phone, wechat,
+                       gender, entryYear, avatarUrl, bio, campusCardImageUrl, authSubmitTime,
                        authStatus, creditScore, status, registerTime
                 FROM [User]
                 ORDER BY registerTime DESC
@@ -1060,6 +1548,45 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
                 """
             ).fetchall()
             return {"reports": rows_to_dicts(rows)}
+
+        if len(segments) == 2 and segments[1] == "feedback" and method == "GET":
+            rows = conn.execute(
+                """
+                SELECT f.*, u.nickname AS userName, u.userType, u.authStatus
+                FROM Feedback f
+                JOIN [User] u ON u.userNo = f.userNo
+                ORDER BY f.feedbackStatus = '待回复' DESC, f.createTime DESC, f.feedbackNo DESC
+                """
+            ).fetchall()
+            return {"feedback": rows_to_dicts(rows)}
+
+        if len(segments) == 4 and segments[1] == "feedback" and segments[3] == "reply" and method == "POST":
+            feedback_no = int(segments[2])
+            reply = require_text(body, "reply", "回复内容", 1000)
+            feedback = conn.execute("SELECT * FROM Feedback WHERE feedbackNo = ?", (feedback_no,)).fetchone()
+            if not feedback:
+                raise HttpError(404, "反馈不存在")
+            with conn:
+                conn.execute(
+                    """
+                    UPDATE Feedback
+                       SET reply = ?,
+                           feedbackStatus = '已回复',
+                           replyTime = ?,
+                           adminNo = ?
+                     WHERE feedbackNo = ?
+                    """,
+                    (reply, now_text(), admin["adminNo"], feedback_no),
+                )
+                create_notification(
+                    conn,
+                    feedback["userNo"],
+                    "管理员回复了你的反馈",
+                    f"你的反馈「{feedback['title']}」已收到回复。",
+                    "contact",
+                    feedback_no,
+                )
+            return {"message": "反馈已回复"}
 
         if len(segments) == 4 and segments[1] == "reports" and segments[3] == "handle" and method == "POST":
             return self.handle_report(conn, int(segments[2]), body, admin["adminNo"])
@@ -1113,7 +1640,7 @@ class CampusMarketHandler(BaseHTTPRequestHandler):
                     "UPDATE OrderSheet SET orderStatus = '已取消', finishTime = ? WHERE itemNo = ? AND orderStatus IN ('待卖家确认', '待面交')",
                     (now_text(), report["targetNo"]),
                 )
-                conn.execute("UPDATE Item SET status = '已下架' WHERE itemNo = ?", (report["targetNo"],))
+                conn.execute("UPDATE Item SET status = '已下架', visible = 0 WHERE itemNo = ?", (report["targetNo"],))
             elif action == "封禁用户" and report["targetType"] == "用户":
                 conn.execute(
                     "UPDATE [User] SET status = '封禁', creditScore = CASE WHEN creditScore - 20 < 0 THEN 0 ELSE creditScore - 20 END WHERE userNo = ?",
@@ -1159,7 +1686,7 @@ def main():
     host = "127.0.0.1"
     port = 8000
     server = ThreadingHTTPServer((host, port), CampusMarketHandler)
-    print(f"校园二手物品交易系统已启动：http://{host}:{port}")
+    print(f"华东理工大学校园二手交易系统已启动：http://{host}:{port}")
     print("演示账号：管理员 admin/admin123；用户 24010001/123456、24010002/123456")
     server.serve_forever()
 

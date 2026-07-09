@@ -35,12 +35,19 @@ CREATE TABLE IF NOT EXISTS `User` (
     userType VARCHAR(20) NOT NULL DEFAULT '学生',
     phone VARCHAR(20),
     wechat VARCHAR(50),
+    gender VARCHAR(10) DEFAULT '保密',
+    entryYear VARCHAR(20),
+    avatarUrl VARCHAR(500),
+    bio VARCHAR(300),
+    campusCardImageUrl VARCHAR(500),
+    authSubmitTime DATETIME,
     authStatus VARCHAR(20) NOT NULL DEFAULT '未认证',
     creditScore INT NOT NULL DEFAULT 100,
     `status` VARCHAR(20) NOT NULL DEFAULT '正常',
     registerTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     adminNo INT,
     CONSTRAINT chk_user_type CHECK (userType IN ('学生', '教职工', '校友')),
+    CONSTRAINT chk_user_gender CHECK (gender IN ('男', '女', '其他', '保密')),
     CONSTRAINT chk_user_auth CHECK (authStatus IN ('未认证', '待审核', '已认证', '认证驳回')),
     CONSTRAINT chk_user_credit CHECK (creditScore BETWEEN 0 AND 120),
     CONSTRAINT chk_user_status CHECK (`status` IN ('正常', '封禁')),
@@ -90,6 +97,7 @@ CREATE TABLE IF NOT EXISTS Item (
     itemNo INT PRIMARY KEY AUTO_INCREMENT,
     sellerNo INT NOT NULL,
     categoryNo INT NOT NULL,
+    campusName VARCHAR(20) NOT NULL DEFAULT '奉贤校区',
     title VARCHAR(200) NOT NULL,
     `description` TEXT NOT NULL,
     originalPrice DECIMAL(10,2) NOT NULL,
@@ -102,6 +110,7 @@ CREATE TABLE IF NOT EXISTS Item (
     publishTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_item_original_price CHECK (originalPrice >= 0),
     CONSTRAINT chk_item_sell_price CHECK (sellPrice >= 0),
+    CONSTRAINT chk_item_campus CHECK (campusName IN ('徐汇校区', '奉贤校区')),
     CONSTRAINT chk_item_condition CHECK (`condition` IN ('全新', '九成新', '八成新', '七成新', '使用痕迹明显')),
     CONSTRAINT chk_item_view_count CHECK (viewCount >= 0),
     CONSTRAINT chk_item_status CHECK (`status` IN ('在售', '交易中', '已售出', '已下架')),
@@ -109,7 +118,8 @@ CREATE TABLE IF NOT EXISTS Item (
     CONSTRAINT fk_item_seller FOREIGN KEY (sellerNo) REFERENCES `User`(userNo),
     CONSTRAINT fk_item_category FOREIGN KEY (categoryNo) REFERENCES Category(categoryNo),
     INDEX idx_item_status_category (`status`, categoryNo),
-    INDEX idx_item_title (title)
+    INDEX idx_item_title (title),
+    INDEX idx_item_campus (campusName)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS Favorite (
@@ -178,6 +188,35 @@ CREATE TABLE IF NOT EXISTS Message (
     INDEX idx_message_item_time (itemNo, msgTime)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS PrivateConversation (
+    conversationNo INT PRIMARY KEY AUTO_INCREMENT,
+    userOneNo INT NOT NULL,
+    userTwoNo INT NOT NULL,
+    relatedItemNo INT,
+    createTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updateTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_private_conversation_order CHECK (userOneNo < userTwoNo),
+    CONSTRAINT fk_private_conversation_one FOREIGN KEY (userOneNo) REFERENCES `User`(userNo),
+    CONSTRAINT fk_private_conversation_two FOREIGN KEY (userTwoNo) REFERENCES `User`(userNo),
+    CONSTRAINT fk_private_conversation_item FOREIGN KEY (relatedItemNo) REFERENCES Item(itemNo),
+    UNIQUE KEY uk_private_conversation_pair_item (userOneNo, userTwoNo, relatedItemNo),
+    INDEX idx_private_conversation_user_one (userOneNo, updateTime),
+    INDEX idx_private_conversation_user_two (userTwoNo, updateTime)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS PrivateMessage (
+    privateMessageNo INT PRIMARY KEY AUTO_INCREMENT,
+    conversationNo INT NOT NULL,
+    senderNo INT NOT NULL,
+    content TEXT NOT NULL,
+    isRead TINYINT(1) NOT NULL DEFAULT 0,
+    sendTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_private_message_read CHECK (isRead IN (0, 1)),
+    CONSTRAINT fk_private_message_conversation FOREIGN KEY (conversationNo) REFERENCES PrivateConversation(conversationNo),
+    CONSTRAINT fk_private_message_sender FOREIGN KEY (senderNo) REFERENCES `User`(userNo),
+    INDEX idx_private_message_conversation (conversationNo, sendTime)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS Review (
     reviewNo INT PRIMARY KEY AUTO_INCREMENT,
     orderNo INT NOT NULL,
@@ -209,6 +248,23 @@ CREATE TABLE IF NOT EXISTS Report (
     CONSTRAINT fk_report_reporter FOREIGN KEY (reporterNo) REFERENCES `User`(userNo),
     CONSTRAINT fk_report_admin FOREIGN KEY (handleAdminNo) REFERENCES Admin(adminNo),
     INDEX idx_report_status (reportStatus)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS Feedback (
+    feedbackNo INT PRIMARY KEY AUTO_INCREMENT,
+    userNo INT NOT NULL,
+    title VARCHAR(120) NOT NULL,
+    content TEXT NOT NULL,
+    reply TEXT,
+    feedbackStatus VARCHAR(20) NOT NULL DEFAULT '待回复',
+    createTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    replyTime DATETIME,
+    adminNo INT,
+    CONSTRAINT chk_feedback_status CHECK (feedbackStatus IN ('待回复', '已回复', '已关闭')),
+    CONSTRAINT fk_feedback_user FOREIGN KEY (userNo) REFERENCES `User`(userNo),
+    CONSTRAINT fk_feedback_admin FOREIGN KEY (adminNo) REFERENCES Admin(adminNo),
+    INDEX idx_feedback_user (userNo, createTime),
+    INDEX idx_feedback_status (feedbackStatus, createTime)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;
@@ -302,11 +358,12 @@ BEGIN
 END$$
 
 -- ============================================================
--- 测试存储过程：返回数据库信息
+-- 系统健康检查存储过程：返回数据库信息
 -- ============================================================
 DROP PROCEDURE IF EXISTS sp_test_ping$$
+DROP PROCEDURE IF EXISTS sp_system_health$$
 
-CREATE PROCEDURE sp_test_ping()
+CREATE PROCEDURE sp_system_health()
 SELECT
     'pong' AS message,
     NOW() AS server_time,
@@ -325,12 +382,15 @@ SELECT
     u.nickname AS sellerName,
     u.realName AS sellerRealName,
     u.userType AS sellerUserType,
+    u.avatarUrl AS sellerAvatarUrl,
+    u.bio AS sellerBio,
     u.creditScore,
     u.authStatus AS sellerAuthStatus,
     i.categoryNo,
     c.categoryName,
     c.parentCategoryNo,
     pc.categoryName AS parentCategoryName,
+    i.campusName,
     i.title,
     i.`description`,
     i.originalPrice,

@@ -2,7 +2,7 @@
 
 这是一个面向数据库原理实验的校园二手物品交易系统。项目推荐使用 MySQL 版作为正式实验运行环境，用于展示关系模式、完整性约束、索引、视图、触发器、存储过程以及前后端联动实现。项目同时保留 SQLite 版，作为无需配置数据库服务的快速测试环境，方便进行本地轻量验证。
 
-系统采用 Python 后端、PyMySQL 数据库访问、原生 HTML/CSS/JavaScript 前端。MySQL 版启动时会自动创建 `campus_market` 数据库、执行迁移脚本并写入演示数据。
+系统采用 Python 后端、PyMySQL 数据库访问、Vue 3 + Vite 前端。MySQL 版启动时会自动创建 `campus_market` 数据库、执行迁移脚本并写入演示数据。
 
 ## 核心结构
 
@@ -16,10 +16,11 @@ campus-market/
 │   ├── schema.sql            # SQLite 快速测试脚本
 │   └── schema_mysql.sql      # MySQL 表、索引、触发器、视图、存储过程
 ├── frontend/
-│   ├── index.html            # 页面入口
-│   ├── styles.css            # 页面样式
-│   ├── app.js                # 前端交互和接口调用
-│   └── assets/               # 示例物品图片
+│   ├── index.html            # Vite 页面入口
+│   ├── package.json          # Vue 3 + Vite 前端依赖和脚本
+│   ├── vite.config.js        # Vite 开发代理配置
+│   ├── public/assets/        # 构建后保持 /assets/... 路径的静态图片
+│   └── src/                  # Vue 页面、组件、状态和接口封装
 ├── scripts/
 │   └── smoke_sqlite.py       # SQLite 版冒烟测试
 ├── requirements-mysql.txt    # MySQL 版 Python 依赖
@@ -63,6 +64,40 @@ MYSQL_CHARSET=utf8mb4
 MYSQL_USER=root MYSQL_PASSWORD=你的密码 python backend/app_mysql.py
 ```
 
+## 前端开发：Vue 3 + Vite
+
+首次开发前安装前端依赖：
+
+```bash
+cd frontend
+npm install
+```
+
+开发联调时，先启动 SQLite 或 MySQL 后端，再启动 Vite：
+
+```bash
+npm run dev
+```
+
+Vite 默认访问：
+
+```text
+http://127.0.0.1:5173
+```
+
+`vite.config.js` 会把 `/api` 和 `/uploads` 代理到 `http://127.0.0.1:8000`。如使用 MySQL 后端 `8001`，可临时修改代理目标或通过后端构建产物方式访问。
+
+构建前端：
+
+```bash
+cd frontend
+npm run build
+```
+
+构建产物位于 `frontend/dist/`。Python 后端会优先服务 `frontend/dist/index.html`；如果未构建，则仍保留源码目录用于前端开发。
+
+注意：直接访问 Python 后端地址（SQLite 默认 `8000`，MySQL 默认 `8001`）前，必须先执行一次 `npm run build` 生成 `frontend/dist/`。如果没有构建产物，后端会显示构建提示页，而不会直接加载 Vite 源码。
+
 ## 快速测试：SQLite 版
 
 SQLite 版用于快速测试和轻量验证，不需要额外数据库服务：
@@ -81,6 +116,12 @@ http://127.0.0.1:8000
 
 ```text
 data/campus_market.db
+```
+
+用户上传的头像、商品图片和校园卡照片会保存到：
+
+```text
+data/uploads/
 ```
 
 如需重置 SQLite 测试数据，停止服务后删除 `data/campus_market.db`，再重新启动即可。
@@ -122,16 +163,19 @@ python3 scripts/smoke_sqlite.py
 ## 已实现功能
 
 - 游客可以浏览物品、搜索物品、按分类筛选、查看求购信息和公告。
-- 用户可以注册、登录、提交校园身份认证。
-- 认证用户可以发布物品、编辑物品、上架和下架物品。
+- 游客可以搜索用户昵称并查看公开主页，主页展示身份认证、公开商品和商品留言。
+- 用户可以注册、登录、编辑头像、性别、入学年份、个性签名、手机号和微信号，并上传校园卡照片提交认证。
+- 认证用户可以发布物品、编辑物品和下架物品；下架会隐藏商品，视为删除。
 - 认证用户可以收藏物品、留言、发布求购、下单、取消订单、确认收货和评价交易。
+- 认证用户可以互相私聊，私信页会定时刷新当前会话。
+- 登录用户可以通过“联系我们”向管理员提交平台建议和使用反馈。
 - 卖家可以确认接单、拒绝接单和取消订单。
-- 系统会为订单、留言、评价、认证审核和举报处理生成站内通知。
-- 管理员可以审核认证、维护分类、维护交易地点、处理举报、强制下架物品、封禁用户、维护公告并查看运营统计。
+- 系统会为订单、留言、评价、私聊、认证审核、举报处理和反馈回复生成站内通知。
+- 管理员可以审核认证资料、查看校园卡照片、回复用户反馈、维护分类、维护交易校区、处理举报、强制下架物品、封禁用户、维护公告并查看运营统计。
 
 ## MySQL 数据库对象
 
-MySQL 脚本位于 `backend/schema_mysql.sql`，包含 13 张核心业务表：
+MySQL 脚本位于 `backend/schema_mysql.sql`，包含 16 张核心业务表：
 
 - `Admin`
 - `User`
@@ -142,8 +186,11 @@ MySQL 脚本位于 `backend/schema_mysql.sql`，包含 13 张核心业务表：
 - `Wanted`
 - `OrderSheet`
 - `Message`
+- `PrivateConversation`
+- `PrivateMessage`
 - `Review`
 - `Report`
+- `Feedback`
 - `Announcement`
 - `Notification`
 
@@ -165,7 +212,7 @@ MySQL 脚本位于 `backend/schema_mysql.sql`，包含 13 张核心业务表：
 
 主要存储过程：
 
-- `sp_test_ping`：返回数据库连通状态、当前时间、数据库名、用户数、物品数和订单数，可用于验证 MySQL 脚本执行结果。
+- `sp_system_health`：返回数据库连通状态、当前时间、数据库名、用户数、物品数和订单数，可用于验证 MySQL 脚本执行结果。
 
 ## 数据库版本说明
 

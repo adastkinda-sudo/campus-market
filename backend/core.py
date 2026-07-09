@@ -9,12 +9,18 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 FRONTEND_DIR = BASE_DIR / "frontend"
+FRONTEND_DIST_DIR = FRONTEND_DIR / "dist"
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "campus_market.db"
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 USER_TYPES = {"学生", "教职工", "校友"}
+ECUST_CAMPUSES = {"徐汇校区", "奉贤校区"}
 
 TOKENS: dict[str, dict[str, int | str]] = {}
+
+
+def uploads_dir() -> Path:
+    return DATA_DIR / "uploads"
 
 
 class HttpError(Exception):
@@ -166,17 +172,180 @@ def default_image_for_category(conn: sqlite3.Connection, category_no: int) -> st
 def init_db() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     with connect() as conn:
+        ensure_sqlite_pre_schema_migrations(conn)
         conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
         ensure_sqlite_migrations(conn)
         seed_db(conn)
 
 
+def sqlite_table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
+    row = conn.execute(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?",
+        (table_name,),
+    ).fetchone()
+    return bool(row and row[0])
+
+
+def sqlite_columns(conn: sqlite3.Connection, table_name: str) -> set[str]:
+    return {row["name"] for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()}
+
+
+def ensure_sqlite_pre_schema_migrations(conn: sqlite3.Connection) -> None:
+    """Patch old local DBs before schema views reference newly added columns."""
+    if sqlite_table_exists(conn, "User"):
+        user_columns = sqlite_columns(conn, "User")
+        user_profile_columns = {
+            "gender": "TEXT DEFAULT '保密'",
+            "entryYear": "TEXT",
+            "avatarUrl": "TEXT",
+            "bio": "TEXT",
+            "campusCardImageUrl": "TEXT",
+            "authSubmitTime": "TEXT",
+        }
+        for column_name, column_sql in user_profile_columns.items():
+            if column_name not in user_columns:
+                conn.execute(f"ALTER TABLE User ADD COLUMN {column_name} {column_sql}")
+
+    if sqlite_table_exists(conn, "Item"):
+        item_columns = sqlite_columns(conn, "Item")
+        if "campusName" not in item_columns:
+            conn.execute("ALTER TABLE Item ADD COLUMN campusName TEXT NOT NULL DEFAULT '奉贤校区'")
+
+
 def ensure_sqlite_migrations(conn: sqlite3.Connection) -> None:
-    user_columns = {row["name"] for row in conn.execute("PRAGMA table_info(User)").fetchall()}
+    user_columns = sqlite_columns(conn, "User")
     if "userType" not in user_columns:
         conn.execute("ALTER TABLE User ADD COLUMN userType TEXT NOT NULL DEFAULT '学生'")
         conn.execute("UPDATE User SET userType = '教职工' WHERE studentNo = '24010004'")
         conn.execute("UPDATE User SET userType = '校友' WHERE studentNo = '24010003'")
+    user_profile_columns = {
+        "gender": "TEXT DEFAULT '保密'",
+        "entryYear": "TEXT",
+        "avatarUrl": "TEXT",
+        "bio": "TEXT",
+        "campusCardImageUrl": "TEXT",
+        "authSubmitTime": "TEXT",
+    }
+    for column_name, column_sql in user_profile_columns.items():
+        if column_name not in user_columns:
+            conn.execute(f"ALTER TABLE User ADD COLUMN {column_name} {column_sql}")
+
+    item_columns = {row["name"] for row in conn.execute("PRAGMA table_info(Item)").fetchall()}
+    if "campusName" not in item_columns:
+        conn.execute("ALTER TABLE Item ADD COLUMN campusName TEXT NOT NULL DEFAULT '奉贤校区'")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_item_campus ON Item(campusName)")
+    apply_user_profile_defaults(conn)
+    apply_item_campus_defaults(conn)
+    recreate_item_detail_view(conn)
+
+
+def apply_user_profile_defaults(conn) -> None:
+    profiles = [
+        ("24010001", "男", "2024级", "/assets/avatar-1.svg", "喜欢把不用的教材和数码配件流转给真正需要的人。"),
+        ("24010002", "女", "2024级", "/assets/avatar-2.svg", "搬宿舍清理闲置中，支持校内面交。"),
+        ("24010003", "男", "2020级", "/assets/avatar-3.svg", "校友回收整理旧资料，偶尔发布一些复习书。"),
+        ("24010004", "女", "教职工", "/assets/avatar-4.svg", "主要发布课程相关书籍和办公小物。"),
+    ]
+    for student_no, gender, entry_year, avatar_url, bio in profiles:
+        conn.execute(
+            """
+            UPDATE [User]
+               SET gender = CASE WHEN gender IS NULL OR gender = '保密' THEN ? ELSE gender END,
+                   entryYear = COALESCE(entryYear, ?),
+                   avatarUrl = COALESCE(avatarUrl, ?),
+                   bio = COALESCE(bio, ?)
+             WHERE studentNo = ?
+            """,
+            (gender, entry_year, avatar_url, bio, student_no),
+        )
+
+
+def item_campus_defaults() -> dict[str, str]:
+    return {
+        "数据库系统概论第五版": "徐汇校区",
+        "Java 程序设计实验指导": "徐汇校区",
+        "英语六级真题与听力资料": "徐汇校区",
+        "高等数学同济第七版上下册": "徐汇校区",
+        "线性代数辅导讲义": "徐汇校区",
+        "计算机408真题解析": "徐汇校区",
+        "雅思核心词汇与听力练习册": "徐汇校区",
+        "三体全集纪念版": "徐汇校区",
+        "ThinkPad X1 Carbon 备用机": "徐汇校区",
+        "MacBook Air M1 8G 256G": "徐汇校区",
+        "27 英寸 2K 显示器": "奉贤校区",
+        "移动固态硬盘 1TB": "徐汇校区",
+        "iPhone 13 128G 蓝色": "徐汇校区",
+        "小米平板 6 配键盘壳": "奉贤校区",
+        "Sony WH-1000XM4 降噪耳机": "徐汇校区",
+        "JBL 便携蓝牙音箱": "奉贤校区",
+        "佳能微单定焦镜头 50mm": "徐汇校区",
+    }
+
+
+def infer_item_campus(title: str, category_name: str | None = None) -> str:
+    defaults = item_campus_defaults()
+    if title in defaults:
+        return defaults[title]
+    text = f"{title} {category_name or ''}"
+    if any(keyword in text for keyword in ("自行车", "滑板", "宿舍", "床帘", "收纳", "电饭煲", "循环扇", "咖啡", "哑铃", "羽毛球", "露营")):
+        return "奉贤校区"
+    return "徐汇校区"
+
+
+def apply_item_campus_defaults(conn) -> None:
+    for title, campus in item_campus_defaults().items():
+        conn.execute("UPDATE Item SET campusName = ? WHERE title = ?", (campus, title))
+    conn.execute(
+        "UPDATE Item SET description = ? WHERE title = ?",
+        ("车况稳定，适合通勤，支持私聊约定看车时间。", "校园折叠自行车"),
+    )
+    conn.execute(
+        """
+        UPDATE Item
+           SET campusName = '奉贤校区'
+         WHERE campusName NOT IN ('徐汇校区', '奉贤校区')
+            OR campusName IS NULL
+        """
+    )
+
+
+def recreate_item_detail_view(conn) -> None:
+    conn.execute("DROP VIEW IF EXISTS V_Item_Detail")
+    conn.execute(
+        """
+        CREATE VIEW V_Item_Detail AS
+        SELECT
+            i.itemNo,
+            i.sellerNo,
+            u.nickname AS sellerName,
+            u.realName AS sellerRealName,
+            u.userType AS sellerUserType,
+            u.avatarUrl AS sellerAvatarUrl,
+            u.bio AS sellerBio,
+            u.creditScore,
+            u.authStatus AS sellerAuthStatus,
+            i.categoryNo,
+            c.categoryName,
+            c.parentCategoryNo,
+            pc.categoryName AS parentCategoryName,
+            i.campusName,
+            i.title,
+            i.description,
+            i.originalPrice,
+            i.sellPrice,
+            i.condition,
+            i.imageUrl,
+            i.viewCount,
+            (SELECT COUNT(*) FROM Favorite f WHERE f.itemNo = i.itemNo) AS favoriteCount,
+            i.status,
+            i.visible,
+            i.publishTime
+        FROM Item i
+        JOIN [User] u ON u.userNo = i.sellerNo
+        JOIN Category c ON c.categoryNo = i.categoryNo
+        LEFT JOIN Category pc ON pc.categoryNo = c.parentCategoryNo
+        """
+    )
 
 
 def seed_db(conn: sqlite3.Connection) -> None:
@@ -202,6 +371,22 @@ def seed_db(conn: sqlite3.Connection) -> None:
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (student_no, real_name, hash_password(password), nickname, user_type, phone, wechat, auth_status, credit, admin_no),
+        )
+
+    profiles = [
+        ("24010001", "男", "2024级", "/assets/avatar-1.svg", "喜欢把不用的教材和数码配件流转给真正需要的人。"),
+        ("24010002", "女", "2024级", "/assets/avatar-2.svg", "搬宿舍清理闲置中，支持校内面交。"),
+        ("24010003", "男", "2020级", "/assets/avatar-3.svg", "校友回收整理旧资料，偶尔发布一些复习书。"),
+        ("24010004", "女", "教职工", "/assets/avatar-4.svg", "主要发布课程相关书籍和办公小物。"),
+    ]
+    for student_no, gender, entry_year, avatar_url, bio in profiles:
+        conn.execute(
+            """
+            UPDATE [User]
+               SET gender = ?, entryYear = ?, avatarUrl = ?, bio = ?
+             WHERE studentNo = ?
+            """,
+            (gender, entry_year, avatar_url, bio, student_no),
         )
 
     categories = [
@@ -232,11 +417,8 @@ def seed_db(conn: sqlite3.Connection) -> None:
         ).fetchone()[0]
 
     locations = [
-        ("南门", "主校区"),
-        ("一食堂门口", "主校区"),
-        ("图书馆北门", "主校区"),
-        ("信息楼大厅", "主校区"),
-        ("东区宿舍楼下", "东校区"),
+        ("具体地点私聊确定", "徐汇校区"),
+        ("具体地点私聊确定", "奉贤校区"),
     ]
     for location_name, campus_name in locations:
         conn.execute(
@@ -248,8 +430,8 @@ def seed_db(conn: sqlite3.Connection) -> None:
         """
         INSERT INTO Announcement(adminNo, title, content)
         VALUES
-        (?, '毕业季二手交易提醒', '请优先选择校内公共区域面交，贵重物品当面确认成色和配件。'),
-        (?, '平台试运行公告', '本系统用于数据库原理实验演示，已支持浏览、下单、留言、评价、举报和后台审核。')
+        (?, '华东理工大学校园二手交易平台公告', '本平台面向华东理工大学徐汇校区、奉贤校区学生、教职工与校友，支持教材资料、数码设备、宿舍用品、代步工具等校内闲置物品流转。'),
+        (?, '两校区线下面交安全提醒', '下单时只需先确认徐汇校区或奉贤校区，具体地点由买卖双方通过私聊确认；贵重物品建议选择校内公共区域当面验收。')
         """,
         (admin_no, admin_no),
     )
@@ -261,6 +443,7 @@ def seed_db(conn: sqlite3.Connection) -> None:
         (
             "24010001",
             "专业课教材",
+            "徐汇校区",
             "数据库系统概论第五版",
             "课堂用书，内页有少量标注，适合数据库原理课程复习。",
             59,
@@ -271,6 +454,7 @@ def seed_db(conn: sqlite3.Connection) -> None:
         (
             "24010002",
             "电脑配件",
+            "奉贤校区",
             "罗技无线键鼠套装",
             "键盘和鼠标均可正常使用，适合宿舍台式机或笔记本外接。",
             139,
@@ -281,8 +465,9 @@ def seed_db(conn: sqlite3.Connection) -> None:
         (
             "24010001",
             "代步工具",
+            "奉贤校区",
             "校园折叠自行车",
-            "车况稳定，适合通勤，支持信息楼附近看车。",
+            "车况稳定，适合通勤，支持私聊约定看车时间。",
             499,
             180,
             "七成新",
@@ -291,6 +476,7 @@ def seed_db(conn: sqlite3.Connection) -> None:
         (
             "24010004",
             "生活用品",
+            "奉贤校区",
             "宿舍小电煮锅",
             "低功率小锅，已清洗，适合煮面和热汤。",
             89,
@@ -301,6 +487,7 @@ def seed_db(conn: sqlite3.Connection) -> None:
         (
             "24010002",
             "考试资料",
+            "徐汇校区",
             "英语六级真题与听力资料",
             "近三年真题整理，附听力音频链接和作文批注笔记。",
             68,
@@ -311,6 +498,7 @@ def seed_db(conn: sqlite3.Connection) -> None:
         (
             "24010004",
             "专业课教材",
+            "徐汇校区",
             "Java 程序设计实验指导",
             "课程实验用书，包含 Swing、集合和文件读写例题。",
             42,
@@ -321,6 +509,7 @@ def seed_db(conn: sqlite3.Connection) -> None:
         (
             "24010001",
             "手机平板",
+            "徐汇校区",
             "iPad 保护壳与电容笔套装",
             "适配 10.2 英寸 iPad，保护壳边角完整，电容笔可正常书写。",
             128,
@@ -331,6 +520,7 @@ def seed_db(conn: sqlite3.Connection) -> None:
         (
             "24010002",
             "电脑配件",
+            "奉贤校区",
             "机械键盘青轴 87 键",
             "键帽已清洁，适合宿舍桌面和编程练习使用。",
             199,
@@ -341,6 +531,7 @@ def seed_db(conn: sqlite3.Connection) -> None:
         (
             "24010004",
             "生活用品",
+            "奉贤校区",
             "护眼台灯可调亮度",
             "三档亮度，USB 供电，适合自习室和宿舍书桌。",
             99,
@@ -351,6 +542,7 @@ def seed_db(conn: sqlite3.Connection) -> None:
         (
             "24010001",
             "生活用品",
+            "奉贤校区",
             "宿舍收纳箱三件套",
             "透明收纳箱，适合衣柜、床下和书桌旁分类整理。",
             75,
@@ -361,6 +553,7 @@ def seed_db(conn: sqlite3.Connection) -> None:
         (
             "24010002",
             "代步工具",
+            "奉贤校区",
             "校园滑板车",
             "折叠款滑板车，刹车正常，适合短距离通勤。",
             269,
@@ -371,6 +564,7 @@ def seed_db(conn: sqlite3.Connection) -> None:
         (
             "24010004",
             "手机平板",
+            "徐汇校区",
             "蓝牙耳机备用机",
             "续航正常，充电仓有轻微划痕，适合通勤和自习使用。",
             159,
@@ -379,15 +573,16 @@ def seed_db(conn: sqlite3.Connection) -> None:
             "/assets/laptop.svg",
         ),
     ]
-    for seller_student_no, category_name, title, description, original, sell, condition, image in items:
+    for seller_student_no, category_name, campus_name, title, description, original, sell, condition, image in items:
         conn.execute(
             """
-            INSERT INTO Item(sellerNo, categoryNo, title, description, originalPrice, sellPrice, condition, imageUrl)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO Item(sellerNo, categoryNo, campusName, title, description, originalPrice, sellPrice, condition, imageUrl)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 user_no(seller_student_no),
                 category_ids[category_name],
+                campus_name,
                 title,
                 description,
                 original,

@@ -17,6 +17,13 @@ CREATE TABLE IF NOT EXISTS User (
         CHECK (userType IN ('学生', '教职工', '校友')),
     phone TEXT,
     wechat TEXT,
+    gender TEXT DEFAULT '保密'
+        CHECK (gender IN ('男', '女', '其他', '保密')),
+    entryYear TEXT,
+    avatarUrl TEXT,
+    bio TEXT,
+    campusCardImageUrl TEXT,
+    authSubmitTime TEXT,
     authStatus TEXT NOT NULL DEFAULT '未认证'
         CHECK (authStatus IN ('未认证', '待审核', '已认证', '认证驳回')),
     creditScore INTEGER NOT NULL DEFAULT 100 CHECK (creditScore BETWEEN 0 AND 120),
@@ -66,6 +73,7 @@ CREATE TABLE IF NOT EXISTS Item (
     itemNo INTEGER PRIMARY KEY AUTOINCREMENT,
     sellerNo INTEGER NOT NULL,
     categoryNo INTEGER NOT NULL,
+    campusName TEXT NOT NULL DEFAULT '奉贤校区',
     title TEXT NOT NULL,
     description TEXT NOT NULL,
     originalPrice REAL NOT NULL CHECK (originalPrice >= 0),
@@ -77,6 +85,7 @@ CREATE TABLE IF NOT EXISTS Item (
         CHECK (status IN ('在售', '交易中', '已售出', '已下架')),
     visible INTEGER NOT NULL DEFAULT 1 CHECK (visible IN (0, 1)),
     publishTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (campusName IN ('徐汇校区', '奉贤校区')),
     FOREIGN KEY (sellerNo) REFERENCES User(userNo),
     FOREIGN KEY (categoryNo) REFERENCES Category(categoryNo)
 );
@@ -136,6 +145,31 @@ CREATE TABLE IF NOT EXISTS Message (
     FOREIGN KEY (parentMessageNo) REFERENCES Message(messageNo) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS PrivateConversation (
+    conversationNo INTEGER PRIMARY KEY AUTOINCREMENT,
+    userOneNo INTEGER NOT NULL,
+    userTwoNo INTEGER NOT NULL,
+    relatedItemNo INTEGER,
+    createTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updateTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (userOneNo < userTwoNo),
+    FOREIGN KEY (userOneNo) REFERENCES User(userNo),
+    FOREIGN KEY (userTwoNo) REFERENCES User(userNo),
+    FOREIGN KEY (relatedItemNo) REFERENCES Item(itemNo),
+    UNIQUE (userOneNo, userTwoNo, relatedItemNo)
+);
+
+CREATE TABLE IF NOT EXISTS PrivateMessage (
+    privateMessageNo INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversationNo INTEGER NOT NULL,
+    senderNo INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    isRead INTEGER NOT NULL DEFAULT 0 CHECK (isRead IN (0, 1)),
+    sendTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (conversationNo) REFERENCES PrivateConversation(conversationNo),
+    FOREIGN KEY (senderNo) REFERENCES User(userNo)
+);
+
 CREATE TABLE IF NOT EXISTS Review (
     reviewNo INTEGER PRIMARY KEY AUTOINCREMENT,
     orderNo INTEGER NOT NULL,
@@ -165,13 +199,34 @@ CREATE TABLE IF NOT EXISTS Report (
     FOREIGN KEY (handleAdminNo) REFERENCES Admin(adminNo)
 );
 
+CREATE TABLE IF NOT EXISTS Feedback (
+    feedbackNo INTEGER PRIMARY KEY AUTOINCREMENT,
+    userNo INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    reply TEXT,
+    feedbackStatus TEXT NOT NULL DEFAULT '待回复'
+        CHECK (feedbackStatus IN ('待回复', '已回复', '已关闭')),
+    createTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    replyTime TEXT,
+    adminNo INTEGER,
+    FOREIGN KEY (userNo) REFERENCES User(userNo),
+    FOREIGN KEY (adminNo) REFERENCES Admin(adminNo)
+);
+
 CREATE INDEX IF NOT EXISTS idx_item_status_category ON Item(status, categoryNo);
 CREATE INDEX IF NOT EXISTS idx_item_title ON Item(title);
+CREATE INDEX IF NOT EXISTS idx_item_campus ON Item(campusName);
 CREATE INDEX IF NOT EXISTS idx_order_buyer ON OrderSheet(buyerNo, orderStatus);
 CREATE INDEX IF NOT EXISTS idx_message_item_time ON Message(itemNo, msgTime);
 CREATE INDEX IF NOT EXISTS idx_report_status ON Report(reportStatus);
 CREATE INDEX IF NOT EXISTS idx_favorite_user ON Favorite(userNo, createTime);
 CREATE INDEX IF NOT EXISTS idx_notification_user_read ON Notification(userNo, isRead, createTime);
+CREATE INDEX IF NOT EXISTS idx_private_conversation_user_one ON PrivateConversation(userOneNo, updateTime);
+CREATE INDEX IF NOT EXISTS idx_private_conversation_user_two ON PrivateConversation(userTwoNo, updateTime);
+CREATE INDEX IF NOT EXISTS idx_private_message_conversation ON PrivateMessage(conversationNo, sendTime);
+CREATE INDEX IF NOT EXISTS idx_feedback_user ON Feedback(userNo, createTime);
+CREATE INDEX IF NOT EXISTS idx_feedback_status ON Feedback(feedbackStatus, createTime);
 
 CREATE TRIGGER IF NOT EXISTS trg_order_no_self_buy
 BEFORE INSERT ON OrderSheet
@@ -245,12 +300,15 @@ SELECT
     u.nickname AS sellerName,
     u.realName AS sellerRealName,
     u.userType AS sellerUserType,
+    u.avatarUrl AS sellerAvatarUrl,
+    u.bio AS sellerBio,
     u.creditScore,
     u.authStatus AS sellerAuthStatus,
     i.categoryNo,
     c.categoryName,
     c.parentCategoryNo,
     pc.categoryName AS parentCategoryName,
+    i.campusName,
     i.title,
     i.description,
     i.originalPrice,

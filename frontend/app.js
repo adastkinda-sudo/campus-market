@@ -11,6 +11,8 @@ const state = {
   homeCategoryFilter: "",
 };
 
+const ECUST_CAMPUSES = ["徐汇校区", "奉贤校区"];
+
 const viewEl = document.getElementById("view");
 const navEl = document.getElementById("nav");
 const noticeEl = document.getElementById("notice");
@@ -165,9 +167,28 @@ function locationOptions(selected = "") {
   return state.locations
     .map(
       (location) =>
-        `<option value="${location.locationNo}" ${String(selected) === String(location.locationNo) ? "selected" : ""}>${escapeHtml(location.campusName)} · ${escapeHtml(location.locationName)}</option>`,
+        `<option value="${location.locationNo}" ${String(selected) === String(location.locationNo) ? "selected" : ""}>${escapeHtml(locationLabel(location))}</option>`,
     )
     .join("");
+}
+
+function locationLabel(location) {
+  return location.campusName;
+}
+
+function campusOptions(selected = "奉贤校区") {
+  return ECUST_CAMPUSES.map(
+    (campus) => `<option value="${campus}" ${campus === selected ? "selected" : ""}>${campus}</option>`,
+  ).join("");
+}
+
+function campusFilterOptions(selected = "") {
+  return [
+    `<option value="" ${selected === "" ? "selected" : ""}>全部校区</option>`,
+    ...ECUST_CAMPUSES.map(
+      (campus) => `<option value="${campus}" ${campus === selected ? "selected" : ""}>${campus}</option>`,
+    ),
+  ].join("");
 }
 
 function isUser() {
@@ -330,9 +351,9 @@ async function renderHome() {
   viewEl.innerHTML = `
     <section class="intro-hero animate-in">
       <div class="intro-copy">
-        <span class="eyebrow animate-in delay-1">Campus C2C Marketplace</span>
-        <h1 class="animate-in delay-2">让校园闲置<br />重新流动起来</h1>
-        <p class="animate-in delay-3">面向学生、教职工与校友的校内交易平台。发布、浏览、求购、下单锁定、线下面交、评价与风控，全流程一站式完成。</p>
+        <span class="eyebrow animate-in delay-1">ECUST C2C Marketplace</span>
+        <h1 class="animate-in delay-2">让华理闲置<br />重新流动起来</h1>
+        <p class="animate-in delay-3">面向华东理工大学徐汇校区、奉贤校区学生、教职工与校友的校内交易平台。发布、浏览、求购、下单锁定、线下面交、评价与风控，全流程一站式完成。</p>
         <div class="intro-actions animate-in delay-4">
           ${cta}
         </div>
@@ -390,7 +411,7 @@ async function renderHome() {
         <div class="feature-icon">🤝</div>
         <span>02</span>
         <h2>线上锁定，线下面交</h2>
-        <p>买家提交订单后物品自动进入交易中，卖家确认后双方按约定地点完成校园面交。</p>
+        <p>买家提交订单后物品自动进入交易中，卖家确认后双方按校区和私聊约定完成校园面交。</p>
       </article>
       <article class="intro-feature animate-in delay-4">
         <div class="feature-icon">🛡️</div>
@@ -412,7 +433,7 @@ function productPreviewRowHtml(item) {
       </div>
       <div class="preview-row-body">
         <div class="preview-row-title">${escapeHtml(item.title)}</div>
-        <div class="preview-row-meta">${escapeHtml(item.condition)} · ${escapeHtml(item.categoryName)} · 信用 ${item.creditScore}</div>
+        <div class="preview-row-meta">${escapeHtml(item.campusName || "校区未标注")} · ${escapeHtml(item.condition)} · ${escapeHtml(item.categoryName)} · 信用 ${item.creditScore}</div>
       </div>
       <span class="preview-price">${money(item.sellPrice)}</span>
     </button>
@@ -473,6 +494,7 @@ function featuredProductHtml(item, badgeText = "重点推荐") {
         </div>
         <div class="meta">
           <span class="pill green">${escapeHtml(item.status)}</span>
+          <span class="pill gold">${escapeHtml(item.campusName || "校区未标注")}</span>
           <span class="pill">${escapeHtml(item.condition)}</span>
           <span class="pill">${escapeHtml(item.categoryName)}</span>
           <span class="pill gold">信用 ${item.creditScore}</span>
@@ -500,7 +522,7 @@ function productMiniListHtml(items, emptyText) {
           <img src="${escapeHtml(item.imageUrl || "/assets/kettle.svg")}" alt="" />
           <span class="mini-product-main">
             <strong>${escapeHtml(item.title)}</strong>
-            <span>${escapeHtml(item.condition)} · ${escapeHtml(item.categoryName)}</span>
+            <span>${escapeHtml(item.campusName || "校区未标注")} · ${escapeHtml(item.condition)} · ${escapeHtml(item.categoryName)}</span>
           </span>
           <span class="mini-product-price">${money(item.sellPrice)}</span>
         </button>
@@ -615,10 +637,13 @@ async function renderItems() {
     <section class="band animate-in delay-2">
       <form id="searchForm" class="toolbar">
         <label>关键词
-          <input name="keyword" placeholder="书名、型号、卖家昵称" />
+          <input name="keyword" placeholder="书名、型号、卖家昵称、校区" />
         </label>
         <label>分类
           <select name="categoryNo">${categoryOptions(initialCategory, true)}</select>
+        </label>
+        <label>校区
+          <select name="campusName">${campusFilterOptions()}</select>
         </label>
         <label>排序
           <select name="sort">
@@ -693,6 +718,7 @@ function itemCardHtml(item, mine = false) {
         </div>
         <div class="meta">
           <span class="pill green">${escapeHtml(item.status)}</span>
+          <span class="pill gold">${escapeHtml(item.campusName || "校区未标注")}</span>
           <span class="pill">${escapeHtml(item.condition)}</span>
           <span class="pill">浏览 ${item.viewCount || 0}</span>
           <span class="pill gold">信用 ${item.creditScore}</span>
@@ -726,6 +752,7 @@ async function openItemDetail(itemNo) {
               <h2>${escapeHtml(item.title)}</h2>
               <div class="meta">
                 <span class="pill green">${escapeHtml(item.status)}</span>
+                <span class="pill gold">${escapeHtml(item.campusName || "校区未标注")}</span>
                 <span class="pill">${escapeHtml(item.categoryName)}</span>
                 <span class="pill">${escapeHtml(item.condition)}</span>
               </div>
@@ -733,7 +760,7 @@ async function openItemDetail(itemNo) {
             <span class="price">${money(item.sellPrice)}</span>
           </div>
           <p>${escapeHtml(item.description)}</p>
-          <p class="muted">原价 ${money(item.originalPrice)} · 卖家 ${escapeHtml(item.sellerName)} · 信用 ${item.creditScore} · 浏览 ${item.viewCount} · 收藏 ${item.favoriteCount || 0}</p>
+          <p class="muted">校区：${escapeHtml(item.campusName || "校区未标注")} · 原价 ${money(item.originalPrice)} · 卖家 ${escapeHtml(item.sellerName)} · 信用 ${item.creditScore} · 浏览 ${item.viewCount} · 收藏 ${item.favoriteCount || 0}</p>
           <div class="actions">
             ${
               isUser() && !own
@@ -761,7 +788,7 @@ async function openItemDetail(itemNo) {
           <section class="band slim footer-actions" id="orderArea">
             <h3>生成订单</h3>
             <form id="orderForm" class="form-grid three">
-              <label>交易地点
+              <label>交易校区
                 <select name="locationNo" required>${locationOptions()}</select>
               </label>
               <label>交易时间
@@ -989,7 +1016,7 @@ async function renderAccount() {
           </div>
           <div class="auth-footnote">
             <span>Database Principle Lab</span>
-            <span>Campus C2C Marketplace</span>
+            <span>ECUST C2C Marketplace</span>
           </div>
         </aside>
         <div class="auth-form-panel">
@@ -1399,6 +1426,9 @@ async function renderPublish() {
                 <label>分类
                   <select name="categoryNo" required>${categoryOptions()}</select>
                 </label>
+                <label>校区
+                  <select name="campusName" required>${campusOptions()}</select>
+                </label>
                 <label>原价
                   <input name="originalPrice" type="number" min="0" step="0.01" required />
                 </label>
@@ -1479,6 +1509,9 @@ async function openEditItem(itemNo) {
         </label>
         <label>分类
           <select name="categoryNo">${categoryOptions(item.categoryNo)}</select>
+        </label>
+        <label>校区
+          <select name="campusName" required>${campusOptions(item.campusName || "奉贤校区")}</select>
         </label>
         <label>原价
           <input name="originalPrice" type="number" min="0" step="0.01" value="${item.originalPrice}" required />
@@ -1591,7 +1624,7 @@ function orderHtml(order) {
         <div class="row-main">
           <div>
             <h3>${escapeHtml(order.itemTitle)}</h3>
-            <p class="muted">${role} · ${escapeHtml(order.locationName)} · ${shortTime(order.meetTime)}</p>
+            <p class="muted">${role} · ${escapeHtml(locationLabel(order))} · ${shortTime(order.meetTime)}</p>
           </div>
           <span class="pill ${order.orderStatus === "交易成功" ? "green" : order.orderStatus === "已取消" ? "red" : "gold"}">${escapeHtml(order.orderStatus)}</span>
         </div>
@@ -1808,7 +1841,7 @@ async function renderAdmin() {
     <section class="page-header animate-in">
       <div>
         <h1>后台管理</h1>
-        <p class="muted">运营概览、身份审核、用户管理、分类地点维护、举报处理与公告发布。</p>
+        <p class="muted">运营概览、身份审核、用户管理、分类校区维护、举报处理与公告发布。</p>
       </div>
     </section>
 
@@ -1846,15 +1879,13 @@ async function renderAdmin() {
           <div id="categoryList" class="mini-list"></div>
         </div>
         <div class="band animate-in delay-3">
-          <div class="section-head"><h2>交易地点</h2></div>
+          <div class="section-head"><h2>交易校区</h2></div>
           <form id="locationForm" class="form-grid one">
-            <label>地点名称
-              <input name="locationName" required />
-            </label>
             <label>校区
-              <input name="campusName" required />
+              <select name="campusName" required>${campusOptions()}</select>
             </label>
-            <button class="btn" type="submit">添加地点</button>
+            <input name="locationName" type="hidden" value="具体地点私聊确定" />
+            <button class="btn" type="submit">添加校区</button>
           </form>
           <div id="locationList" class="mini-list"></div>
         </div>
@@ -2106,7 +2137,7 @@ function renderLocationList() {
     .map(
       (location) => `
         <div class="mini-row">
-          <span>${escapeHtml(location.campusName)} · ${escapeHtml(location.locationName)}</span>
+          <span>${escapeHtml(locationLabel(location))}</span>
           <div class="actions">
             <button class="ghost-btn" type="button" onclick="editLocation(${location.locationNo})">编辑</button>
             <button class="danger-btn" type="button" onclick="deleteLocation(${location.locationNo})">删除</button>
@@ -2119,14 +2150,12 @@ function renderLocationList() {
 
 async function editLocation(locationNo) {
   const location = state.locations.find((item) => item.locationNo === locationNo);
-  const locationName = prompt("地点名称", location.locationName);
-  if (!locationName) return;
-  const campusName = prompt("校区", location.campusName);
+  const campusName = prompt("校区（徐汇校区 / 奉贤校区）", location.campusName);
   if (!campusName) return;
   try {
     const data = await api(`/api/locations/${locationNo}`, {
       method: "PUT",
-      body: JSON.stringify({ locationName, campusName }),
+      body: JSON.stringify({ locationName: "具体地点私聊确定", campusName }),
     });
     showNotice(data.message);
     await refreshAdmin();
@@ -2136,7 +2165,7 @@ async function editLocation(locationNo) {
 }
 
 async function deleteLocation(locationNo) {
-  if (!confirm("确定删除该交易地点吗？")) return;
+  if (!confirm("确定删除该交易校区吗？")) return;
   try {
     const data = await api(`/api/locations/${locationNo}`, {
       method: "DELETE",

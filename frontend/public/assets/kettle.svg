@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="daily goods">
+  <rect width="640" height="420" rx="18" fill="#FFF5E9"/>
+  <rect x="206" y="146" width="228" height="164" rx="54" fill="#287C78"/>
+  <rect x="262" y="94" width="116" height="70" rx="28" fill="#1F2A44"/>
+  <rect x="246" y="76" width="148" height="34" rx="17" fill="#E57A44"/>
+  <path d="M422 190h66c36 0 58 28 58 62s-22 62-58 62h-54" fill="none" stroke="#1F2A44" stroke-width="24" stroke-linecap="round"/>
+  <path d="M206 196h-82l82 58" fill="#F2B84B"/>
+  <rect x="250" y="194" width="118" height="14" rx="7" fill="#fff" opacity=".75"/>
+  <rect x="266" y="226" width="86" height="12" rx="6" fill="#fff" opacity=".5"/>
+</svg>
