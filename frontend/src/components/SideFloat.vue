@@ -37,3 +37,51 @@ onUnmounted(() => {
   window.removeEventListener("scroll", onScroll);
 });
 </script>
+
+<style scoped>
+.side-float {
+  position: fixed;
+  right: 20px;
+  bottom: 100px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.float-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 52px;
+  height: 52px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: all 0.16s ease;
+  backdrop-filter: blur(12px);
+}
+.float-btn:hover {
+  transform: translateY(-2px);
+  border-color: var(--primary);
+  color: var(--primary);
+  box-shadow: var(--shadow-lg);
+}
+.float-icon { font-size: 18px; line-height: 1; }
+.float-text { font-size: 11px; }
+
+:global([data-theme="dark"]) .float-btn { background: var(--surface); border-color: var(--line-strong); }
+
+@media (max-width: 720px) {
+  .side-float { right: 10px; bottom: 80px; }
+  .float-btn { width: 44px; height: 44px; }
+}
+</style>

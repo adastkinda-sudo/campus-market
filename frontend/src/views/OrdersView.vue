@@ -87,3 +87,12 @@ async function submitReview() {
 
 onMounted(loadOrders);
 </script>
+
+<style scoped>
+.order-row { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 16px; }
+.order-thumb { width: 100%; height: 96px; border-radius: var(--radius-sm); border: 1px solid var(--line); object-fit: cover; }
+@media (max-width: 620px) {
+  .order-row { grid-template-columns: 1fr; }
+  .order-thumb { height: 160px; }
+}
+</style>

@@ -181,3 +181,32 @@ async function startChat() {
   }
 }
 </script>
+
+<style scoped>
+.detail-layout { display: grid; grid-template-columns: minmax(280px, 430px) minmax(0, 1fr); gap: 22px; min-width: 0; }
+.detail-media {
+  overflow: hidden;
+  height: 320px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  box-shadow: var(--shadow-md);
+}
+.detail-media img { width: 100%; height: 100%; object-fit: cover; }
+.detail-body { display: grid; align-content: start; gap: 14px; min-width: 0; }
+.detail-body .section-head { align-items: flex-start; gap: 12px; margin-bottom: 0; }
+.detail-body .detail-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; padding-right: 48px; }
+.detail-body .section-head > div { min-width: 0; }
+.detail-body .section-head .price { justify-self: end; margin-top: 2px; }
+.detail-body h2 { overflow-wrap: anywhere; }
+.seller-meta { margin: 0; }
+
+:global([data-theme="dark"]) .detail-media { background: var(--surface); border-color: var(--line); }
+
+@media (max-width: 980px) {
+  .detail-layout { grid-template-columns: 1fr; }
+  .detail-body .section-head { flex-direction: column; }
+  .detail-body .detail-head { grid-template-columns: 1fr; padding-right: 0; }
+  .detail-body .detail-head .price { justify-self: start; }
+}
+</style>
