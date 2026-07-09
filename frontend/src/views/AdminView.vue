@@ -1,5 +1,5 @@
 <template>
-  <section v-if="!isAdmin()" class="empty-state animate-in">
+  <section v-if="!session.isAdmin" class="empty-state animate-in">
     <strong>需要管理员权限</strong>
     <RouterLink class="btn" to="/account">去登录</RouterLink>
   </section>
@@ -67,8 +67,19 @@
 <script setup>
 import { onMounted, reactive, ref } from "vue";
 import { RouterLink } from "vue-router";
-import { api, campusCardSrc } from "../api/client.js";
-import { isAdmin, notify } from "../state/session.js";
+import {
+  auditUser as apiAuditUser,
+  getAuthRequests,
+  getFeedback,
+  getStats,
+  getUsers,
+  replyFeedback as apiReplyFeedback,
+  setUserStatus as apiSetUserStatus,
+} from "../api/modules/admin.js";
+import { campusCardSrc } from "../api/modules/uploads.js";
+import { useSessionStore } from "../stores/session.js";
+
+const session = useSessionStore();
 
 const authRequests = ref([]);
 const feedback = ref([]);
@@ -77,52 +88,46 @@ const stats = ref({});
 const feedbackReplies = reactive({});
 
 async function loadAdmin() {
-  if (!isAdmin()) return;
-  const [authData, feedbackData, usersData, statsData] = await Promise.all([
-    api("/api/admin/auth-requests"),
-    api("/api/admin/feedback"),
-    api("/api/admin/users"),
-    api("/api/admin/stats"),
+  if (!session.isAdmin) return;
+  const [authReq, fb, userList, statList] = await Promise.all([
+    getAuthRequests(),
+    getFeedback(),
+    getUsers(),
+    getStats(),
   ]);
-  authRequests.value = authData.requests || [];
-  feedback.value = feedbackData.feedback || [];
-  users.value = usersData.users || [];
-  stats.value = statsData;
-  feedback.value.forEach((item) => {
-    feedbackReplies[item.feedbackNo] = item.reply || "";
-  });
+  authRequests.value = authReq.authRequests || [];
+  feedback.value = fb.feedback || [];
+  users.value = userList.users || [];
+  stats.value = statList;
 }
 
 async function auditUser(userNo, authStatus) {
   try {
-    const data = await api(`/api/admin/users/${userNo}/auth`, { method: "POST", body: JSON.stringify({ authStatus }) });
-    notify(data.message);
+    const data = await apiAuditUser(userNo, authStatus);
+    session.notify(data.message);
     await loadAdmin();
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 
 async function replyFeedback(item) {
   try {
-    const data = await api(`/api/admin/feedback/${item.feedbackNo}/reply`, {
-      method: "POST",
-      body: JSON.stringify({ reply: feedbackReplies[item.feedbackNo] }),
-    });
-    notify(data.message);
+    const data = await apiReplyFeedback(item.feedbackNo, feedbackReplies[item.feedbackNo]);
+    session.notify(data.message);
     await loadAdmin();
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 
 async function setUserStatus(userNo, status) {
   try {
-    const data = await api(`/api/admin/users/${userNo}/status`, { method: "POST", body: JSON.stringify({ status }) });
-    notify(data.message);
+    const data = await apiSetUserStatus(userNo, status);
+    session.notify(data.message);
     await loadAdmin();
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 

@@ -8,7 +8,7 @@
       </div>
     </RouterLink>
     <div class="topbar-actions">
-      <button class="icon-btn theme-toggle" type="button" title="切换深色模式" @click="toggleTheme">{{ state.theme === "dark" ? "☀️" : "🌙" }}</button>
+      <button class="icon-btn theme-toggle" type="button" title="切换深色模式" @click="toggleTheme">{{ session.theme === "dark" ? "☀️" : "🌙" }}</button>
       <nav>
         <RouterLink v-for="item in navItems" :key="item.to" class="nav-btn" :to="item.to">
           {{ item.label }}
@@ -19,24 +19,31 @@
 
   <main class="shell">
     <GlobalSearch v-if="showGlobalSearch" />
-    <section v-if="state.notice" :class="['notice', state.noticeError ? 'error' : '']">{{ state.notice }}</section>
+    <section v-if="session.notice" :class="['notice', session.noticeError ? 'error' : '']">{{ session.notice }}</section>
     <RouterView />
   </main>
+
+  <SideFloat />
 </template>
 
 <script setup>
 import { computed, onMounted } from "vue";
 import { RouterLink, RouterView, useRoute } from "vue-router";
 import GlobalSearch from "./components/GlobalSearch.vue";
-import { isAdmin, isUser, loadCommon, loadMe, setTheme, state } from "./state/session.js";
+import SideFloat from "./components/SideFloat.vue";
+import { useCommonStore } from "./stores/common.js";
+import { useSessionStore } from "./stores/session.js";
 
 const route = useRoute();
+const session = useSessionStore();
+const common = useCommonStore();
+
 const showGlobalSearch = computed(() => route.path !== "/account");
 
 const userBadge = computed(() => {
-  if (!state.principal) return "游客浏览";
-  if (isAdmin()) return `管理员 ${state.principal.username}`;
-  return `${state.principal.nickname} · ${state.principal.userType || "学生"} · ${state.principal.authStatus} · 信用 ${state.principal.creditScore}`;
+  if (!session.principal) return "游客浏览";
+  if (session.isAdmin) return `管理员 ${session.principal.username}`;
+  return `${session.principal.nickname} · ${session.principal.userType || "学生"} · ${session.principal.authStatus} · 信用 ${session.principal.creditScore}`;
 });
 
 const navItems = computed(() => {
@@ -47,27 +54,27 @@ const navItems = computed(() => {
     { to: "/users", label: "用户搜索" },
     { to: "/contact", label: "联系我们" },
   ];
-  if (isUser()) {
+  if (session.isUser) {
     items.push(
       { to: "/favorites", label: "我的收藏" },
-      { to: "/notifications", label: state.unreadCount ? `通知(${state.unreadCount})` : "通知" },
+      { to: "/notifications", label: session.unreadCount ? `通知(${session.unreadCount})` : "通知" },
       { to: "/publish", label: "发布管理" },
       { to: "/orders", label: "我的订单" },
       { to: "/chats", label: "私信" },
     );
   }
-  if (isAdmin()) items.push({ to: "/admin", label: "后台管理" });
-  items.push({ to: "/account", label: state.principal ? "账号" : "登录" });
+  if (session.isAdmin) items.push({ to: "/admin", label: "后台管理" });
+  items.push({ to: "/account", label: session.principal ? "账号" : "登录" });
   return items;
 });
 
 function toggleTheme() {
-  setTheme(state.theme === "dark" ? "light" : "dark");
+  session.setTheme(session.theme === "dark" ? "light" : "dark");
 }
 
 onMounted(async () => {
-  setTheme(state.theme);
-  await loadMe();
-  await loadCommon();
+  session.setTheme(session.theme);
+  await session.loadMe();
+  await common.loadCommon();
 });
 </script>

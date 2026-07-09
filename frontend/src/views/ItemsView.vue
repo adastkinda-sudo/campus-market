@@ -14,7 +14,7 @@
       <label>分类
         <select v-model="filters.categoryNo">
           <option value="">全部分类</option>
-          <option v-for="category in state.categories" :key="category.categoryNo" :value="category.categoryNo">
+          <option v-for="category in common.categories" :key="category.categoryNo" :value="category.categoryNo">
             {{ category.parentCategoryName ? `${category.parentCategoryName} / ${category.categoryName}` : category.categoryName }}
           </option>
         </select>
@@ -43,8 +43,8 @@
       v-for="item in items"
       :key="item.itemNo"
       :item="item"
-      :show-favorite="isUser() && item.sellerNo !== state.principal?.userNo"
-      :show-buy="canTrade() && item.sellerNo !== state.principal?.userNo && item.status === '在售'"
+      :show-favorite="session.isUser && item.sellerNo !== session.principal?.userNo"
+      :show-buy="session.canTrade && item.sellerNo !== session.principal?.userNo && item.status === '在售'"
       @detail="openDetail"
       @favorite="toggleFavorite"
     />
@@ -60,12 +60,16 @@
 <script setup>
 import { onMounted, reactive, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { api } from "../api/client.js";
+import { searchItems, toggleFavorite as apiToggleFavorite } from "../api/modules/items.js";
 import ItemDetailModal from "../components/ItemDetailModal.vue";
 import ProductCard from "../components/ProductCard.vue";
-import { canTrade, isUser, notify, state } from "../state/session.js";
+import { useCommonStore } from "../stores/common.js";
+import { useSessionStore } from "../stores/session.js";
 
 const route = useRoute();
+const session = useSessionStore();
+const common = useCommonStore();
+
 const items = ref([]);
 const detailOpen = ref(false);
 const activeItemNo = ref(null);
@@ -81,43 +85,38 @@ function syncQuery() {
   filters.categoryNo = route.query.categoryNo || "";
 }
 
+async function loadItems() {
+  const params = new URLSearchParams();
+  if (filters.keyword) params.set("keyword", filters.keyword);
+  if (filters.categoryNo) params.set("categoryNo", filters.categoryNo);
+  if (filters.campusName) params.set("campusName", filters.campusName);
+  params.set("sort", filters.sort);
+  try {
+    const data = await searchItems(Object.fromEntries(params));
+    items.value = data.items || [];
+  } catch (error) {
+    session.notify(error.message, true);
+  }
+}
+
 function openDetail(item) {
   activeItemNo.value = item.itemNo;
   detailOpen.value = true;
 }
 
-async function loadItems() {
-  const params = new URLSearchParams();
-  Object.entries(filters).forEach(([key, value]) => {
-    if (value) params.set(key, value);
-  });
-  try {
-    const data = await api(`/api/items?${params.toString()}`);
-    items.value = data.items || [];
-  } catch (error) {
-    notify(error.message, true);
-  }
-}
-
 async function toggleFavorite(item) {
   try {
-    const data = await api(`/api/items/${item.itemNo}/favorite`, {
-      method: item.isFavorite ? "DELETE" : "POST",
-    });
-    notify(data.message);
+    const data = await apiToggleFavorite(item.itemNo, item.isFavorite);
+    session.notify(data.message);
     await loadItems();
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 
-watch(() => [route.query.keyword, route.query.categoryNo], async () => {
+watch(() => route.query, syncQuery, { deep: true });
+onMounted(() => {
   syncQuery();
-  await loadItems();
-});
-
-onMounted(async () => {
-  syncQuery();
-  await loadItems();
+  loadItems();
 });
 </script>

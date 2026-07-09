@@ -1,5 +1,5 @@
 <template>
-  <section v-if="!isUser()" class="empty-state"><strong>需要先登录</strong><RouterLink class="btn" to="/account">去登录</RouterLink></section>
+  <section v-if="!session.isUser" class="empty-state"><strong>需要先登录</strong><RouterLink class="btn" to="/account">去登录</RouterLink></section>
   <template v-else>
     <section class="page-header animate-in"><div><h1>我的订单</h1><p class="muted">买家提交订单后物品进入交易中，双方线下面交后确认完成。</p></div></section>
     <section class="table-list">
@@ -36,46 +36,54 @@
 <script setup>
 import { onMounted, reactive, ref } from "vue";
 import { RouterLink } from "vue-router";
-import { api } from "../api/client.js";
+import { createReview, getMyOrders, orderAction as apiOrderAction } from "../api/modules/orders.js";
 import BaseModal from "../components/BaseModal.vue";
-import { isUser, notify, state } from "../state/session.js";
+import { useSessionStore } from "../stores/session.js";
 import { money, shortTime } from "../utils.js";
+
+const session = useSessionStore();
 
 const orders = ref([]);
 const reviewOpen = ref(false);
 const reviewForm = reactive({ orderNo: null, rating: 5, content: "" });
-function roleText(order) { return order.buyerNo === state.principal.userNo ? "我买入" : "我售出"; }
-function canConfirm(order) { return order.sellerNo === state.principal.userNo && order.orderStatus === "待卖家确认"; }
-function canComplete(order) { return order.buyerNo === state.principal.userNo && order.orderStatus === "待面交"; }
+
+function roleText(order) { return order.buyerNo === session.principal?.userNo ? "我买入" : "我售出"; }
+function canConfirm(order) { return order.sellerNo === session.principal?.userNo && order.orderStatus === "待卖家确认"; }
+function canComplete(order) { return order.buyerNo === session.principal?.userNo && order.orderStatus === "待面交"; }
 function canCancel(order) { return ["待卖家确认", "待面交"].includes(order.orderStatus); }
 function canReview(order) { return order.orderStatus === "交易成功" && !order.reviewedByMe; }
+
 async function loadOrders() {
-  if (!isUser()) return;
-  const data = await api("/api/orders/mine");
+  if (!session.isUser) return;
+  const data = await getMyOrders();
   orders.value = data.orders || [];
 }
+
 async function orderAction(order, action) {
   try {
-    const data = await api(`/api/orders/${order.orderNo}/action`, { method: "POST", body: JSON.stringify({ action }) });
-    notify(data.message);
+    const data = await apiOrderAction(order.orderNo, action);
+    session.notify(data.message);
     await loadOrders();
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
+
 function openReview(order) {
   Object.assign(reviewForm, { orderNo: order.orderNo, rating: 5, content: "" });
   reviewOpen.value = true;
 }
+
 async function submitReview() {
   try {
-    const data = await api(`/api/orders/${reviewForm.orderNo}/reviews`, { method: "POST", body: JSON.stringify(reviewForm) });
-    notify(data.message);
+    const data = await createReview(reviewForm.orderNo, reviewForm);
+    session.notify(data.message);
     reviewOpen.value = false;
     await loadOrders();
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
+
 onMounted(loadOrders);
 </script>

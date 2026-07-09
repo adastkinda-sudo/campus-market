@@ -1,5 +1,5 @@
 <template>
-  <section v-if="!isUser()" class="empty-state animate-in">
+  <section v-if="!session.isUser" class="empty-state animate-in">
     <span class="icon">🔒</span>
     <strong>需要先登录</strong>
     <p>登录用户账号后才能发布闲置物品。</p>
@@ -12,17 +12,17 @@
         <h1>发布管理</h1>
         <p class="muted">认证用户且信用积分不低于 60 才能发布闲置。</p>
       </div>
-      <span :class="['pill', canTrade() ? 'green' : 'gold']">{{ canTrade() ? "可发布" : "受限" }}</span>
+      <span :class="['pill', session.canTrade ? 'green' : 'gold']">{{ session.canTrade ? "可发布" : "受限" }}</span>
     </section>
 
     <section class="split">
       <div class="band animate-in delay-1">
         <div class="section-head"><h2>发布闲置物品</h2></div>
-        <form v-if="canTrade()" class="form-grid" @submit.prevent="publishItem">
+        <form v-if="session.canTrade" class="form-grid" @submit.prevent="publishItem">
           <label>物品标题<input v-model="form.title" required /></label>
           <label>分类
             <select v-model="form.categoryNo" required>
-              <option v-for="category in state.categories" :key="category.categoryNo" :value="category.categoryNo">{{ category.categoryName }}</option>
+              <option v-for="category in common.categories" :key="category.categoryNo" :value="category.categoryNo">{{ category.categoryName }}</option>
             </select>
           </label>
           <label>校区
@@ -71,7 +71,7 @@
         <label>物品标题<input v-model="editForm.title" required /></label>
         <label>分类
           <select v-model="editForm.categoryNo" required>
-            <option v-for="category in state.categories" :key="category.categoryNo" :value="category.categoryNo">{{ category.categoryName }}</option>
+            <option v-for="category in common.categories" :key="category.categoryNo" :value="category.categoryNo">{{ category.categoryName }}</option>
           </select>
         </label>
         <label>校区<select v-model="editForm.campusName" required><option>徐汇校区</option><option>奉贤校区</option></select></label>
@@ -89,12 +89,16 @@
 <script setup>
 import { onMounted, reactive, ref } from "vue";
 import { RouterLink } from "vue-router";
-import { api } from "../api/client.js";
+import { createItem, getItem, searchItems, updateItem, updateItemStatus } from "../api/modules/items.js";
 import BaseModal from "../components/BaseModal.vue";
 import FileUpload from "../components/FileUpload.vue";
 import ItemDetailModal from "../components/ItemDetailModal.vue";
 import ProductCard from "../components/ProductCard.vue";
-import { canTrade, isUser, loadCommon, notify, state } from "../state/session.js";
+import { useCommonStore } from "../stores/common.js";
+import { useSessionStore } from "../stores/session.js";
+
+const session = useSessionStore();
+const common = useCommonStore();
 
 const blankForm = () => ({ title: "", categoryNo: "", campusName: "奉贤校区", originalPrice: "", sellPrice: "", condition: "八成新", imageUrl: "", description: "" });
 const form = reactive(blankForm());
@@ -105,7 +109,7 @@ const editOpen = ref(false);
 const activeItemNo = ref(null);
 
 function resetForm() {
-  Object.assign(form, blankForm(), { categoryNo: state.categories[0]?.categoryNo || "" });
+  Object.assign(form, blankForm(), { categoryNo: common.categories[0]?.categoryNo || "" });
 }
 
 function openDetail(item) {
@@ -114,53 +118,53 @@ function openDetail(item) {
 }
 
 async function loadMyItems() {
-  if (!isUser()) return;
-  const data = await api("/api/items?status=全部&sort=new");
-  myItems.value = (data.items || []).filter((item) => item.sellerNo === state.principal.userNo);
+  if (!session.isUser) return;
+  const data = await searchItems({ status: "全部", sort: "new" });
+  myItems.value = (data.items || []).filter((item) => item.sellerNo === session.principal?.userNo);
 }
 
 async function publishItem() {
   try {
-    const data = await api("/api/items", { method: "POST", body: JSON.stringify(form) });
-    notify(data.message);
+    const data = await createItem(form);
+    session.notify(data.message);
     resetForm();
-    await loadCommon();
+    await common.loadCommon();
     await loadMyItems();
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 
 async function openEdit(item) {
   try {
-    const data = await api(`/api/items/${item.itemNo}`);
+    const data = await getItem(item.itemNo);
     Object.assign(editForm, data.item);
     editOpen.value = true;
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 
 async function saveEdit() {
   try {
-    const data = await api(`/api/items/${editForm.itemNo}`, { method: "PUT", body: JSON.stringify(editForm) });
-    notify(data.message);
+    const data = await updateItem(editForm.itemNo, editForm);
+    session.notify(data.message);
     editOpen.value = false;
     await loadMyItems();
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 
 async function shelveItem(item) {
   if (!window.confirm(`确定下架「${item.title}」吗？下架后它会从我的发布和市场中隐藏。`)) return;
   try {
-    const data = await api(`/api/items/${item.itemNo}/status`, { method: "POST", body: JSON.stringify({ status: "已下架" }) });
-    notify(data.message);
-    await loadCommon();
+    const data = await updateItemStatus(item.itemNo, "已下架");
+    session.notify(data.message);
+    await common.loadCommon();
     await loadMyItems();
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 

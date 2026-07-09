@@ -10,8 +10,8 @@
 
 <script setup>
 import { ref } from "vue";
-import { uploadImage } from "../api/client.js";
-import { notify } from "../state/session.js";
+import { uploadImage } from "../api/modules/uploads.js";
+import { useSessionStore } from "../stores/session.js";
 
 const props = defineProps({
   modelValue: String,
@@ -21,6 +21,7 @@ const props = defineProps({
 });
 const emit = defineEmits(["update:modelValue"]);
 const loading = ref(false);
+const session = useSessionStore();
 
 async function onChange(event) {
   const file = event.target.files?.[0];
@@ -29,9 +30,9 @@ async function onChange(event) {
   try {
     const data = await uploadImage(file, props.purpose);
     emit("update:modelValue", data.url);
-    notify(data.message);
+    session.notify(data.message);
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   } finally {
     loading.value = false;
     event.target.value = "";

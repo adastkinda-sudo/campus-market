@@ -38,7 +38,7 @@
         <form class="form-grid three" @submit.prevent="submitOrder">
           <label>交易校区
             <select v-model="orderForm.locationNo" required>
-              <option v-for="location in state.locations" :key="location.locationNo" :value="location.locationNo">
+              <option v-for="location in common.locations" :key="location.locationNo" :value="location.locationNo">
                 {{ location.campusName }}
               </option>
             </select>
@@ -64,7 +64,7 @@
           </article>
           <div v-if="!messages.length" class="empty">暂无留言</div>
         </div>
-        <form v-if="isUser()" class="form-grid one footer-actions" @submit.prevent="submitMessage">
+        <form v-if="session.isUser" class="form-grid one footer-actions" @submit.prevent="submitMessage">
           <label>留言内容
             <textarea v-model="messageContent" required placeholder="询问细节、价格或面交安排"></textarea>
           </label>
@@ -79,17 +79,23 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { api } from "../api/client.js";
-import { canTrade, isUser, notify, state } from "../state/session.js";
-import { defaultImage, money, shortTime } from "../utils.js";
+import { createChat } from "../api/modules/chats.js";
+import { createMessage, createOrder, getItem, toggleFavorite as apiToggleFavorite } from "../api/modules/items.js";
 import BaseModal from "./BaseModal.vue";
+import { useCommonStore } from "../stores/common.js";
+import { useSessionStore } from "../stores/session.js";
+import { defaultImage, money, shortTime } from "../utils.js";
 
 const props = defineProps({
   modelValue: Boolean,
   itemNo: Number,
 });
 const emit = defineEmits(["update:modelValue", "changed"]);
+
 const router = useRouter();
+const session = useSessionStore();
+const common = useCommonStore();
+
 const item = ref(null);
 const messages = ref([]);
 const loading = ref(false);
@@ -97,10 +103,10 @@ const showOrder = ref(false);
 const messageContent = ref("");
 const orderForm = reactive({ locationNo: "", meetTime: "" });
 
-const own = computed(() => isUser() && item.value?.sellerNo === state.principal.userNo);
-const canBuy = computed(() => canTrade() && item.value && !own.value && item.value.status === "在售");
-const canFavorite = computed(() => isUser() && item.value && !own.value);
-const canChat = computed(() => canTrade() && item.value && !own.value);
+const own = computed(() => session.isUser && item.value?.sellerNo === session.principal?.userNo);
+const canBuy = computed(() => session.canTrade && item.value && !own.value && item.value.status === "在售");
+const canFavorite = computed(() => session.isUser && item.value && !own.value);
+const canChat = computed(() => session.canTrade && item.value && !own.value);
 
 watch(
   () => [props.modelValue, props.itemNo],
@@ -113,12 +119,12 @@ watch(
 async function loadDetail(itemNo) {
   loading.value = true;
   try {
-    const data = await api(`/api/items/${itemNo}`);
+    const data = await getItem(itemNo);
     item.value = data.item;
     messages.value = data.messages || [];
-    orderForm.locationNo = state.locations[0]?.locationNo || "";
+    orderForm.locationNo = common.locations[0]?.locationNo || "";
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
     close();
   } finally {
     loading.value = false;
@@ -133,55 +139,45 @@ function close() {
 }
 
 async function toggleFavorite() {
-  const method = item.value.isFavorite ? "DELETE" : "POST";
   try {
-    const data = await api(`/api/items/${item.value.itemNo}/favorite`, { method });
-    notify(data.message);
+    const data = await apiToggleFavorite(item.value.itemNo, item.value.isFavorite);
+    session.notify(data.message);
     await loadDetail(item.value.itemNo);
     emit("changed");
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 
 async function submitOrder() {
   try {
-    const data = await api(`/api/items/${item.value.itemNo}/orders`, {
-      method: "POST",
-      body: JSON.stringify(orderForm),
-    });
-    notify(data.message);
+    const data = await createOrder(item.value.itemNo, orderForm);
+    session.notify(data.message);
     await loadDetail(item.value.itemNo);
     emit("changed");
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 
 async function submitMessage() {
   try {
-    const data = await api(`/api/items/${item.value.itemNo}/messages`, {
-      method: "POST",
-      body: JSON.stringify({ content: messageContent.value }),
-    });
+    const data = await createMessage(item.value.itemNo, messageContent.value);
     messageContent.value = "";
-    notify(data.message);
+    session.notify(data.message);
     await loadDetail(item.value.itemNo);
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 
 async function startChat() {
   try {
-    const data = await api("/api/chats", {
-      method: "POST",
-      body: JSON.stringify({ targetUserNo: item.value.sellerNo, relatedItemNo: item.value.itemNo }),
-    });
+    const data = await createChat({ targetUserNo: item.value.sellerNo, relatedItemNo: item.value.itemNo });
     close();
     await router.push({ path: "/chats", query: { conversation: data.conversationNo } });
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 </script>

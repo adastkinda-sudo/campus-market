@@ -68,12 +68,15 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { RouterLink, useRouter } from "vue-router";
-import { api } from "../api/client.js";
-import { notify } from "../state/session.js";
+import { searchItems } from "../api/modules/items.js";
+import { searchUsers } from "../api/modules/users.js";
+import { useSessionStore } from "../stores/session.js";
 import { defaultImage, money } from "../utils.js";
 import ItemDetailModal from "./ItemDetailModal.vue";
 
 const router = useRouter();
+const session = useSessionStore();
+
 const root = ref(null);
 const keyword = ref("");
 const items = ref([]);
@@ -126,16 +129,15 @@ async function search() {
   const currentRequest = ++requestId;
   loading.value = true;
   try {
-    const encoded = encodeURIComponent(keywordValue);
     const [itemData, userData] = await Promise.all([
-      api(`/api/items?keyword=${encoded}&sort=hot`),
-      api(`/api/users?keyword=${encoded}`),
+      searchItems({ keyword: keywordValue, sort: "hot" }),
+      searchUsers(keywordValue),
     ]);
     if (currentRequest !== requestId) return;
     items.value = (itemData.items || []).slice(0, 5);
     users.value = (userData.users || []).slice(0, 5);
   } catch (error) {
-    if (currentRequest === requestId) notify(error.message, true);
+    if (currentRequest === requestId) session.notify(error.message, true);
   } finally {
     if (currentRequest === requestId) loading.value = false;
   }

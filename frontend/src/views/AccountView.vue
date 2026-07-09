@@ -1,32 +1,32 @@
 <template>
-  <template v-if="state.principal">
-    <section v-if="isUser()" class="page-header animate-in profile-hero">
-      <img class="avatar-lg" :src="profile.avatarUrl || '/assets/avatar-1.svg'" alt="" />
-      <div>
-        <h1>{{ state.principal.nickname }}</h1>
-        <p class="muted">{{ state.principal.realName }} · {{ state.principal.userType }} · {{ state.principal.studentNo }}</p>
-        <p v-if="state.principal.bio" class="muted">{{ state.principal.bio }}</p>
+  <template v-if="session.principal">
+    <!-- 用户主页 -->
+    <section v-if="session.isUser" class="mine-page animate-in">
+      <div class="mine-header">
+        <div class="mine-user">
+          <img class="mine-avatar-lg" :src="session.principal.avatarUrl || '/assets/avatar-1.svg'" alt="" />
+          <div class="mine-info">
+            <h2>{{ session.principal.nickname }}</h2>
+            <p class="muted">{{ session.principal.realName }} · {{ session.principal.userType }} · {{ session.principal.studentNo }}</p>
+            <div class="mine-tags">
+              <span :class="['pill', session.principal.authStatus === '已认证' ? 'green' : 'gold']">{{ session.principal.authStatus }}</span>
+              <span class="pill">信用 {{ session.principal.creditScore }}</span>
+              <span class="pill">{{ session.principal.status }}</span>
+            </div>
+          </div>
+        </div>
+        <button class="ghost-btn" type="button" @click="logoutAndGo">退出登录</button>
       </div>
-      <span :class="['pill', state.principal.authStatus === '已认证' ? 'green' : 'gold']">{{ state.principal.authStatus }}</span>
-    </section>
-    <section v-else class="page-header animate-in">
-      <div>
-        <h1>管理员账号</h1>
-        <p class="muted">{{ state.principal.username }}</p>
-      </div>
-    </section>
 
-    <section v-if="isUser()" class="band animate-in delay-1 account-stats-band">
-      <div class="stats">
-        <div class="stat"><span class="muted">信用积分</span><strong>{{ state.principal.creditScore }}</strong></div>
-        <div class="stat"><span class="muted">账号状态</span><strong>{{ state.principal.status }}</strong></div>
-        <div class="stat"><span class="muted">性别</span><strong>{{ state.principal.gender || "保密" }}</strong></div>
-        <div class="stat"><span class="muted">入学年份</span><strong>{{ state.principal.entryYear || "未填写" }}</strong></div>
+      <div class="mine-grid">
+        <RouterLink v-for="entry in userEntries" :key="entry.to" class="mine-card" :to="entry.to">
+          <span class="mine-card-icon">{{ entry.icon }}</span>
+          <strong>{{ entry.label }}</strong>
+          <span v-if="entry.badge" class="mine-badge">{{ entry.badge }}</span>
+        </RouterLink>
       </div>
-    </section>
 
-    <section v-if="isUser()" class="split animate-in delay-2 account-panels">
-      <div class="band account-panel">
+      <div class="band">
         <div class="section-head"><h2>个人资料</h2></div>
         <form class="form-grid account-form" @submit.prevent="saveProfile">
           <label>昵称<input v-model="profile.nickname" required /></label>
@@ -43,23 +43,41 @@
           <button class="btn" type="submit">保存资料</button>
         </form>
       </div>
-      <div class="band account-panel">
+
+      <div class="band">
         <div class="section-head"><h2>校园身份认证</h2></div>
-        <form class="form-grid one" @submit.prevent="submitAuth">
+        <form class="form-grid one" @submit.prevent="doSubmitAuth">
           <FileUpload v-model="authForm.campusCardImageUrl" purpose="campus-card" label="校园卡照片" hint="仅本人和管理员可查看" />
           <label>补充说明<textarea v-model="authForm.bio" placeholder="可补充院系、交易偏好或身份说明" /></label>
           <button class="btn" type="submit">提交校园认证</button>
-          <p v-if="state.principal.campusCardImageUrl" class="muted">已上传校园卡照片。</p>
-          <img v-if="state.principal.campusCardImageUrl" class="card-preview" :src="campusCardSrc(state.principal.campusCardImageUrl)" alt="校园卡照片" />
+          <p v-if="session.principal.campusCardImageUrl" class="muted">已上传校园卡照片。</p>
+          <img v-if="session.principal.campusCardImageUrl" class="card-preview" :src="campusCardSrc(session.principal.campusCardImageUrl)" alt="校园卡照片" />
         </form>
       </div>
     </section>
 
-    <section class="band slim animate-in delay-3">
-      <button class="danger-btn" type="button" @click="logoutAndGo">退出登录</button>
+    <!-- 管理员主页 -->
+    <section v-else class="mine-page animate-in">
+      <div class="mine-header">
+        <div class="mine-user">
+          <div class="mine-avatar-lg admin-avatar">A</div>
+          <div class="mine-info">
+            <h2>管理员</h2>
+            <p class="muted">{{ session.principal.username }}</p>
+          </div>
+        </div>
+        <button class="ghost-btn" type="button" @click="logoutAndGo">退出登录</button>
+      </div>
+      <div class="mine-grid">
+        <RouterLink v-for="entry in adminEntries" :key="entry.to" class="mine-card" :to="entry.to">
+          <span class="mine-card-icon">{{ entry.icon }}</span>
+          <strong>{{ entry.label }}</strong>
+        </RouterLink>
+      </div>
     </section>
   </template>
 
+  <!-- 未登录 -->
   <section v-else class="auth-stage">
     <div :class="['auth-card animate-in', registerMode ? 'register-mode' : '']">
       <aside class="auth-brand-panel">
@@ -103,94 +121,109 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { api, campusCardSrc } from "../api/client.js";
 import FileUpload from "../components/FileUpload.vue";
-import { isUser, loadMe, login, logout, notify, state } from "../state/session.js";
+import { register, submitAuth as apiSubmitAuth, updateProfile } from "../api/modules/auth.js";
+import { campusCardSrc } from "../api/modules/uploads.js";
+import { useSessionStore } from "../stores/session.js";
 
 const router = useRouter();
+const session = useSessionStore();
+
 const registerMode = ref(false);
 const loginForm = reactive({ account: "", password: "" });
 const registerForm = reactive({ userType: "学生", studentNo: "", realName: "", nickname: "", phone: "", wechat: "", password: "", confirmPassword: "" });
 const profile = reactive({ nickname: "", gender: "保密", entryYear: "", avatarUrl: "", bio: "", phone: "", wechat: "" });
 const authForm = reactive({ campusCardImageUrl: "", bio: "" });
 
+const userEntries = computed(() => [
+  { to: "/favorites", label: "我的收藏", icon: "⭐" },
+  { to: "/orders", label: "我的订单", icon: "📦" },
+  { to: "/chats", label: "私信", icon: "💬", badge: session.unreadCount > 0 ? session.unreadCount : null },
+  { to: "/notifications", label: "通知", icon: "🔔", badge: session.unreadCount > 0 ? session.unreadCount : null },
+  { to: "/publish", label: "发布管理", icon: "📝" },
+  { to: "/wanted", label: "求购市场", icon: "🛒" },
+  { to: "/contact", label: "联系我们", icon: "📞" },
+]);
+
+const adminEntries = computed(() => [
+  { to: "/admin", label: "后台管理", icon: "⚙️" },
+  { to: "/contact", label: "用户反馈", icon: "📞" },
+]);
+
 function syncProfile() {
-  if (!state.principal || !isUser()) return;
+  if (!session.principal || !session.isUser) return;
   Object.assign(profile, {
-    nickname: state.principal.nickname || "",
-    gender: state.principal.gender || "保密",
-    entryYear: state.principal.entryYear || "",
-    avatarUrl: state.principal.avatarUrl || "",
-    bio: state.principal.bio || "",
-    phone: state.principal.phone || "",
-    wechat: state.principal.wechat || "",
+    nickname: session.principal.nickname || "",
+    gender: session.principal.gender || "保密",
+    entryYear: session.principal.entryYear || "",
+    avatarUrl: session.principal.avatarUrl || "",
+    bio: session.principal.bio || "",
+    phone: session.principal.phone || "",
+    wechat: session.principal.wechat || "",
   });
-  authForm.campusCardImageUrl = state.principal.campusCardImageUrl || "";
-  authForm.bio = state.principal.bio || "";
+  authForm.campusCardImageUrl = session.principal.campusCardImageUrl || "";
+  authForm.bio = session.principal.bio || "";
 }
 
 async function doLogin() {
   try {
-    await login(loginForm.account, loginForm.password);
+    await session.login(loginForm.account, loginForm.password);
     syncProfile();
-    await router.push("/items");
+    await router.push("/");
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 
 async function doRegister() {
   if (registerForm.password !== registerForm.confirmPassword) {
-    notify("两次输入的密码不一致", true);
+    session.notify("两次输入的密码不一致", true);
     return;
   }
   const body = { ...registerForm };
   delete body.confirmPassword;
   try {
-    const data = await api("/api/auth/register", { method: "POST", body: JSON.stringify(body) });
-    notify(data.message);
+    const data = await register(body);
+    session.notify(data.message);
     registerMode.value = false;
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 
 async function saveProfile() {
   try {
-    const data = await api("/api/me", { method: "PUT", body: JSON.stringify(profile) });
-    state.principal = data.principal;
+    const data = await updateProfile(profile);
+    session.principal = data.principal;
     syncProfile();
-    notify(data.message);
+    session.notify(data.message);
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 
-async function submitAuth() {
+async function doSubmitAuth() {
   if (!authForm.campusCardImageUrl) {
-    notify("请先上传校园卡照片", true);
+    session.notify("请先上传校园卡照片", true);
     return;
   }
   try {
-    const data = await api("/api/auth/submit-auth", {
-      method: "POST",
-      body: JSON.stringify({ ...profile, campusCardImageUrl: authForm.campusCardImageUrl, bio: authForm.bio || profile.bio }),
-    });
-    notify(data.message);
-    await loadMe();
+    const data = await apiSubmitAuth({ ...profile, campusCardImageUrl: authForm.campusCardImageUrl, bio: authForm.bio || profile.bio });
+    session.notify(data.message);
+    await session.loadMe();
     syncProfile();
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 
 async function logoutAndGo() {
-  await logout();
+  await session.logout();
   await router.push("/");
 }
 
-watch(() => state.principal, syncProfile);
+watch(() => session.principal, syncProfile);
 onMounted(syncProfile);
 </script>

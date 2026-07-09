@@ -37,9 +37,9 @@
     </div>
   </section>
 
-  <section v-if="state.announcements.length" class="announcement-banner animate-in">
-    <strong>{{ state.announcements[0].title }}</strong>
-    <span>{{ state.announcements[0].content }}</span>
+  <section v-if="common.announcements.length" class="announcement-banner animate-in">
+    <strong>{{ common.announcements[0].title }}</strong>
+    <span>{{ common.announcements[0].content }}</span>
   </section>
 
   <section class="category-strip animate-in">
@@ -106,10 +106,10 @@
   </section>
 
   <section class="intro-stats">
-    <div class="glass-stat"><span>平台物品</span><strong>{{ state.dashboard?.itemCount || 0 }}</strong></div>
-    <div class="glass-stat"><span>正在出售</span><strong>{{ state.dashboard?.onSaleCount || 0 }}</strong></div>
-    <div class="glass-stat"><span>注册用户</span><strong>{{ state.dashboard?.userCount || 0 }}</strong></div>
-    <div class="glass-stat"><span>成功订单</span><strong>{{ state.dashboard?.successOrderCount || 0 }}</strong></div>
+    <div class="glass-stat"><span>平台物品</span><strong>{{ common.dashboard?.itemCount || 0 }}</strong></div>
+    <div class="glass-stat"><span>正在出售</span><strong>{{ common.dashboard?.onSaleCount || 0 }}</strong></div>
+    <div class="glass-stat"><span>注册用户</span><strong>{{ common.dashboard?.userCount || 0 }}</strong></div>
+    <div class="glass-stat"><span>成功订单</span><strong>{{ common.dashboard?.successOrderCount || 0 }}</strong></div>
   </section>
 
   <section v-if="latestItems.length" class="intro-gallery animate-in">
@@ -134,10 +134,14 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { RouterLink } from "vue-router";
-import { api } from "../api/client.js";
+import { searchItems } from "../api/modules/items.js";
 import ItemDetailModal from "../components/ItemDetailModal.vue";
-import { notify, state } from "../state/session.js";
+import { useCommonStore } from "../stores/common.js";
+import { useSessionStore } from "../stores/session.js";
 import { defaultImage, discountPercent, money, truncateText } from "../utils.js";
+
+const session = useSessionStore();
+const common = useCommonStore();
 
 const latestItems = ref([]);
 const hotItems = ref([]);
@@ -147,7 +151,7 @@ const activeItemNo = ref(null);
 const featuredItems = computed(() => hotItems.value.slice(0, 2));
 const dealItems = computed(() => latestItems.value.filter((item) => Number(item.sellPrice) <= 100).slice(0, 4));
 const previewItems = computed(() => latestItems.value.slice(0, 4));
-const parentCategories = computed(() => state.categories.filter((category) => !category.parentCategoryNo).slice(0, 8));
+const parentCategories = computed(() => common.categories.filter((category) => !category.parentCategoryNo).slice(0, 8));
 
 function openDetail(item) {
   activeItemNo.value = item.itemNo;
@@ -157,13 +161,13 @@ function openDetail(item) {
 async function loadHome() {
   try {
     const [latest, hot] = await Promise.all([
-      api("/api/items?sort=new"),
-      api("/api/items?sort=hot"),
+      searchItems({ sort: "new" }),
+      searchItems({ sort: "hot" }),
     ]);
     latestItems.value = latest.items || [];
     hotItems.value = hot.items || [];
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 

@@ -1,5 +1,5 @@
 <template>
-  <section v-if="!isUser()" class="empty-state animate-in">
+  <section v-if="!session.isUser" class="empty-state animate-in">
     <strong>需要先登录</strong>
     <RouterLink class="btn" to="/account">去登录</RouterLink>
   </section>
@@ -16,10 +16,13 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import { RouterLink } from "vue-router";
+import { toggleFavorite as apiToggleFavorite } from "../api/modules/items.js";
 import { api } from "../api/client.js";
 import ItemDetailModal from "../components/ItemDetailModal.vue";
 import ProductCard from "../components/ProductCard.vue";
-import { isUser, notify } from "../state/session.js";
+import { useSessionStore } from "../stores/session.js";
+
+const session = useSessionStore();
 
 const items = ref([]);
 const detailOpen = ref(false);
@@ -31,22 +34,22 @@ function openDetail(item) {
 }
 
 async function loadFavorites() {
-  if (!isUser()) return;
+  if (!session.isUser) return;
   try {
     const data = await api("/api/favorites");
     items.value = data.items || [];
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 
 async function toggleFavorite(item) {
   try {
-    const data = await api(`/api/items/${item.itemNo}/favorite`, { method: "DELETE" });
-    notify(data.message);
+    const data = await apiToggleFavorite(item.itemNo, true);
+    session.notify(data.message);
     await loadFavorites();
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 

@@ -1,5 +1,5 @@
 <template>
-  <section v-if="!isUser()" class="empty-state"><strong>需要先登录</strong><RouterLink class="btn" to="/account">去登录</RouterLink></section>
+  <section v-if="!session.isUser" class="empty-state"><strong>需要先登录</strong><RouterLink class="btn" to="/account">去登录</RouterLink></section>
   <template v-else>
     <section class="page-header animate-in">
       <div><h1>通知中心</h1><p class="muted">订单、留言、评价、认证审核和反馈回复都会在这里汇总。</p></div>
@@ -22,27 +22,43 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import { RouterLink } from "vue-router";
-import { api } from "../api/client.js";
-import { isUser, loadCommon, notify, state } from "../state/session.js";
+import { getNotifications, readAll as apiReadAll, readOne as apiReadOne } from "../api/modules/notifications.js";
+import { useCommonStore } from "../stores/common.js";
+import { useSessionStore } from "../stores/session.js";
 import { shortTime } from "../utils.js";
 
+const session = useSessionStore();
+const common = useCommonStore();
+
 const notifications = ref([]);
+
 async function loadNotifications() {
-  if (!isUser()) return;
-  const data = await api("/api/notifications");
+  if (!session.isUser) return;
+  const data = await getNotifications();
   notifications.value = data.notifications || [];
-  state.unreadCount = data.unreadCount || 0;
+  session.unreadCount = data.unreadCount || 0;
 }
+
 async function readAll() {
-  const data = await api("/api/notifications/read-all", { method: "POST", body: "{}" });
-  notify(data.message);
-  await loadNotifications();
-  await loadCommon();
+  try {
+    const data = await apiReadAll();
+    session.notify(data.message);
+    await loadNotifications();
+    await common.loadCommon();
+  } catch (error) {
+    session.notify(error.message, true);
+  }
 }
+
 async function readOne(no) {
-  const data = await api(`/api/notifications/${no}/read`, { method: "POST", body: "{}" });
-  notify(data.message);
-  await loadNotifications();
+  try {
+    const data = await apiReadOne(no);
+    session.notify(data.message);
+    await loadNotifications();
+  } catch (error) {
+    session.notify(error.message, true);
+  }
 }
+
 onMounted(loadNotifications);
 </script>

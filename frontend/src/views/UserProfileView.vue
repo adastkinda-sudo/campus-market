@@ -43,20 +43,23 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { api } from "../api/client.js";
+import { createChat } from "../api/modules/chats.js";
+import { getUserProfile } from "../api/modules/users.js";
 import ItemDetailModal from "../components/ItemDetailModal.vue";
 import ProductCard from "../components/ProductCard.vue";
-import { canTrade, notify, state } from "../state/session.js";
+import { useSessionStore } from "../stores/session.js";
 import { shortTime } from "../utils.js";
 
 const route = useRoute();
 const router = useRouter();
+const session = useSessionStore();
+
 const user = ref(null);
 const items = ref([]);
 const messages = ref([]);
 const detailOpen = ref(false);
 const activeItemNo = ref(null);
-const canChatUser = computed(() => canTrade() && user.value && user.value.userNo !== state.principal?.userNo && user.value.authStatus === "已认证");
+const canChatUser = computed(() => session.canTrade && user.value && user.value.userNo !== session.principal?.userNo && user.value.authStatus === "已认证");
 
 function openDetail(item) {
   activeItemNo.value = item.itemNo;
@@ -65,21 +68,21 @@ function openDetail(item) {
 
 async function loadProfile() {
   try {
-    const data = await api(`/api/users/${route.params.id}`);
+    const data = await getUserProfile(route.params.id);
     user.value = data.user;
     items.value = data.items || [];
     messages.value = data.messages || [];
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 
 async function startChat() {
   try {
-    const data = await api("/api/chats", { method: "POST", body: JSON.stringify({ targetUserNo: user.value.userNo }) });
+    const data = await createChat({ targetUserNo: user.value.userNo });
     await router.push({ path: "/chats", query: { conversation: data.conversationNo } });
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 

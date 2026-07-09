@@ -1,5 +1,5 @@
 <template>
-  <section v-if="!isUser()" class="empty-state animate-in">
+  <section v-if="!session.isUser" class="empty-state animate-in">
     <strong>登录后可联系管理员</strong>
     <p>登录用户可以提交平台建议和使用反馈。</p>
     <RouterLink class="btn" to="/account">去登录</RouterLink>
@@ -35,25 +35,30 @@
 <script setup>
 import { onMounted, reactive, ref } from "vue";
 import { RouterLink } from "vue-router";
-import { api } from "../api/client.js";
-import { isUser, notify } from "../state/session.js";
+import { getMyFeedback, submitFeedback as apiSubmitFeedback } from "../api/modules/contact.js";
+import { useSessionStore } from "../stores/session.js";
+
+const session = useSessionStore();
 
 const form = reactive({ title: "", content: "" });
 const feedback = ref([]);
+
 async function loadFeedback() {
-  if (!isUser()) return;
-  const data = await api("/api/contact/mine");
+  if (!session.isUser) return;
+  const data = await getMyFeedback();
   feedback.value = data.feedback || [];
 }
+
 async function submitFeedback() {
   try {
-    const data = await api("/api/contact", { method: "POST", body: JSON.stringify(form) });
-    notify(data.message);
+    const data = await apiSubmitFeedback(form);
+    session.notify(data.message);
     Object.assign(form, { title: "", content: "" });
     await loadFeedback();
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
+
 onMounted(loadFeedback);
 </script>

@@ -27,10 +27,12 @@
 <script setup>
 import { onMounted, ref, watch } from "vue";
 import { RouterLink, useRoute } from "vue-router";
-import { api } from "../api/client.js";
-import { notify } from "../state/session.js";
+import { searchUsers } from "../api/modules/users.js";
+import { useSessionStore } from "../stores/session.js";
 
 const route = useRoute();
+const session = useSessionStore();
+
 const keyword = ref("");
 const users = ref([]);
 const searched = ref(false);
@@ -43,10 +45,10 @@ async function loadUsers() {
     return;
   }
   try {
-    const data = await api(`/api/users?keyword=${encodeURIComponent(value)}`);
+    const data = await searchUsers(value);
     users.value = data.users || [];
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 

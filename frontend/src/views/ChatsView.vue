@@ -1,5 +1,5 @@
 <template>
-  <section v-if="!canTrade()" class="empty-state animate-in">
+  <section v-if="!session.canTrade" class="empty-state animate-in">
     <strong>私信仅面向已认证用户</strong>
     <p>请先完成校园身份认证后再使用私聊功能。</p>
     <RouterLink class="btn" to="/account">去认证</RouterLink>
@@ -28,7 +28,7 @@
         </div>
       </div>
       <div class="chat-messages">
-        <article v-for="message in messages" :key="message.privateMessageNo" :class="['chat-bubble', message.senderNo === state.principal.userNo ? 'mine' : '']">
+        <article v-for="message in messages" :key="message.privateMessageNo" :class="['chat-bubble', message.senderNo === session.principal?.userNo ? 'mine' : '']">
           <strong>{{ message.senderName }}</strong>
           <p>{{ message.content }}</p>
           <span>{{ shortTime(message.sendTime) }}</span>
@@ -47,12 +47,14 @@
 <script setup>
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import { RouterLink, useRoute, useRouter } from "vue-router";
-import { api } from "../api/client.js";
-import { canTrade, notify, state } from "../state/session.js";
+import { createChat, getConversations, getMessages, sendMessage as apiSendMessage } from "../api/modules/chats.js";
+import { useSessionStore } from "../stores/session.js";
 import { shortTime } from "../utils.js";
 
 const route = useRoute();
 const router = useRouter();
+const session = useSessionStore();
+
 const conversations = ref([]);
 const messages = ref([]);
 const otherUser = ref(null);
@@ -61,8 +63,8 @@ const messageText = ref("");
 let timer = null;
 
 async function loadConversations() {
-  if (!canTrade()) return;
-  const data = await api("/api/chats");
+  if (!session.canTrade) return;
+  const data = await getConversations();
   conversations.value = data.conversations || [];
   const queryConversation = Number(route.query.conversation || 0);
   if (queryConversation && !activeConversationNo.value) activeConversationNo.value = queryConversation;
@@ -71,7 +73,7 @@ async function loadConversations() {
 
 async function loadMessages() {
   if (!activeConversationNo.value) return;
-  const data = await api(`/api/chats/${activeConversationNo.value}/messages`);
+  const data = await getMessages(activeConversationNo.value);
   messages.value = data.messages || [];
   otherUser.value = data.otherUser;
   await loadConversations();
@@ -85,15 +87,12 @@ async function selectConversation(no) {
 
 async function sendMessage() {
   try {
-    const data = await api(`/api/chats/${activeConversationNo.value}/messages`, {
-      method: "POST",
-      body: JSON.stringify({ content: messageText.value }),
-    });
-    notify(data.message);
+    const data = await apiSendMessage(activeConversationNo.value, messageText.value);
+    session.notify(data.message);
     messageText.value = "";
     await loadMessages();
   } catch (error) {
-    notify(error.message, true);
+    session.notify(error.message, true);
   }
 }
 
