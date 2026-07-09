@@ -18,12 +18,14 @@
         <button class="ghost-btn" type="button" @click="logoutAndGo">退出登录</button>
       </div>
 
-      <div class="mine-grid">
-        <RouterLink v-for="entry in userEntries" :key="entry.to" class="mine-card" :to="entry.to">
-          <span class="mine-card-icon">{{ entry.icon }}</span>
-          <strong>{{ entry.label }}</strong>
-          <span v-if="entry.badge" class="mine-badge">{{ entry.badge }}</span>
-        </RouterLink>
+      <div class="band">
+        <div class="mine-grid">
+          <RouterLink v-for="entry in userEntries" :key="entry.to" class="mine-card" :to="entry.to">
+            <span class="mine-card-icon">{{ entry.icon }}</span>
+            <strong>{{ entry.label }}</strong>
+            <span v-if="entry.badge" class="mine-badge">{{ entry.badge }}</span>
+          </RouterLink>
+        </div>
       </div>
 
       <div class="band">
@@ -68,11 +70,13 @@
         </div>
         <button class="ghost-btn" type="button" @click="logoutAndGo">退出登录</button>
       </div>
-      <div class="mine-grid">
-        <RouterLink v-for="entry in adminEntries" :key="entry.to" class="mine-card" :to="entry.to">
-          <span class="mine-card-icon">{{ entry.icon }}</span>
-          <strong>{{ entry.label }}</strong>
-        </RouterLink>
+      <div class="band">
+        <div class="mine-grid mine-grid-admin">
+          <RouterLink v-for="entry in adminEntries" :key="entry.to" class="mine-card" :to="entry.to">
+            <span class="mine-card-icon">{{ entry.icon }}</span>
+            <strong>{{ entry.label }}</strong>
+          </RouterLink>
+        </div>
       </div>
     </section>
   </template>
@@ -481,7 +485,8 @@ onMounted(syncProfile);
 .mine-tags .pill { background: rgba(255, 255, 255, 0.2); color: #fff; border: none; font-size: 12px; }
 .mine-header .ghost-btn { border-color: rgba(255, 255, 255, 0.3); color: #fff; background: rgba(255, 255, 255, 0.1); }
 .mine-header .ghost-btn:hover { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.5); }
-.mine-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; }
+.mine-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 24px; }
+.mine-grid-admin { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .mine-card {
   display: flex;
   flex-direction: column;
@@ -548,7 +553,8 @@ onMounted(syncProfile);
   .auth-fields.register { grid-template-columns: 1fr; }
   .auth-logo { width: min(180px, 100%); }
   .auth-brand-copy p { font-size: 15px; }
-  .mine-grid { grid-template-columns: repeat(3, 1fr); }
+  .mine-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .mine-grid-admin { grid-template-columns: repeat(2, 1fr); }
   .orb-1, .orb-2 { display: none; }
 }
 </style>
