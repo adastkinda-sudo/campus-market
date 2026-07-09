@@ -11,6 +11,7 @@ import UserSearchView from "./views/UserSearchView.vue";
 import UserProfileView from "./views/UserProfileView.vue";
 import ChatsView from "./views/ChatsView.vue";
 import ContactView from "./views/ContactView.vue";
+import BrowsingHistoryView from "./views/BrowsingHistoryView.vue";
 import AdminView from "./views/AdminView.vue";
 
 const router = createRouter({
@@ -28,6 +29,7 @@ const router = createRouter({
     { path: "/users/:id", name: "user-profile", component: UserProfileView },
     { path: "/chats", name: "chats", component: ChatsView, meta: { requiresAuth: true } },
     { path: "/contact", name: "contact", component: ContactView },
+    { path: "/history", name: "history", component: BrowsingHistoryView, meta: { requiresAuth: true } },
     { path: "/admin", name: "admin", component: AdminView, meta: { requiresAdmin: true } },
   ],
 });

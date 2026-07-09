@@ -60,3 +60,30 @@ export function defaultImage(item) {
   if (item?.imageUrl) return item.imageUrl;
   return defaultImageForText(`${item?.title || ""} ${item?.categoryName || ""} ${item?.parentCategoryName || ""}`);
 }
+
+/* ===== Browsing History (localStorage) ===== */
+const HISTORY_KEY = "campus-market-history";
+const HISTORY_MAX = 50;
+
+export function addBrowsingHistory(item) {
+  const list = getBrowsingHistory();
+  const idx = list.findIndex((entry) => entry.itemNo === item.itemNo);
+  if (idx >= 0) list.splice(idx, 1);
+  list.unshift({
+    itemNo: item.itemNo,
+    title: item.title,
+    imageUrl: item.imageUrl || defaultImage(item),
+    sellPrice: item.sellPrice,
+    viewTime: new Date().toISOString(),
+  });
+  if (list.length > HISTORY_MAX) list.length = HISTORY_MAX;
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+}
+
+export function getBrowsingHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}

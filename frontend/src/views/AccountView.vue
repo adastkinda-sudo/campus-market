@@ -159,6 +159,7 @@ const userEntries = computed(() => [
   { to: "/orders", label: "我的订单", icon: "📦" },
   { to: "/chats", label: "私信", icon: "💬", badge: session.chatUnreadCount > 0 ? session.chatUnreadCount : null },
   { to: "/notifications", label: "通知", icon: "🔔", badge: session.unreadCount > 0 ? session.unreadCount : null },
+  { to: "/history", label: "浏览记录", icon: "👀" },
   { to: "/publish", label: "发布管理", icon: "📝" },
   { to: "/wanted", label: "求购市场", icon: "🛒" },
   { to: "/contact", label: "联系我们", icon: "📞" },
@@ -485,7 +486,7 @@ onMounted(syncProfile);
 .mine-tags .pill { background: rgba(255, 255, 255, 0.2); color: #fff; border: none; font-size: 12px; }
 .mine-header .ghost-btn { border-color: rgba(255, 255, 255, 0.3); color: #fff; background: rgba(255, 255, 255, 0.1); }
 .mine-header .ghost-btn:hover { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.5); }
-.mine-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 24px; }
+.mine-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
 .mine-grid-admin { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .mine-card {
   display: flex;
@@ -554,7 +555,6 @@ onMounted(syncProfile);
   .auth-logo { width: min(180px, 100%); }
   .auth-brand-copy p { font-size: 15px; }
   .mine-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
-  .mine-grid-admin { grid-template-columns: repeat(2, 1fr); }
   .orb-1, .orb-2 { display: none; }
 }
 </style>

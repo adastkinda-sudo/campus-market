@@ -84,7 +84,7 @@ import { createMessage, createOrder, getItem, toggleFavorite as apiToggleFavorit
 import BaseModal from "./BaseModal.vue";
 import { useCommonStore } from "../stores/common.js";
 import { useSessionStore } from "../stores/session.js";
-import { defaultImage, money, shortTime } from "../utils.js";
+import { addBrowsingHistory, defaultImage, money, shortTime } from "../utils.js";
 
 const props = defineProps({
   modelValue: Boolean,
@@ -122,6 +122,7 @@ async function loadDetail(itemNo) {
     const data = await getItem(itemNo);
     item.value = data.item;
     messages.value = data.messages || [];
+    addBrowsingHistory(data.item);
     orderForm.locationNo = common.locations[0]?.locationNo || "";
   } catch (error) {
     session.notify(error.message, true);
