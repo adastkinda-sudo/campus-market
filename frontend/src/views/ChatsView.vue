@@ -87,8 +87,7 @@ async function selectConversation(no) {
 
 async function sendMessage() {
   try {
-    const data = await apiSendMessage(activeConversationNo.value, messageText.value);
-    session.notify(data.message);
+    await apiSendMessage(activeConversationNo.value, messageText.value);
     messageText.value = "";
     await loadMessages();
   } catch (error) {

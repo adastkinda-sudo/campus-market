@@ -211,6 +211,7 @@ def init_db() -> None:
         conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
         ensure_sqlite_migrations(conn)
         seed_db(conn)
+        ensure_support_user(conn)
 
 
 def sqlite_table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
@@ -383,6 +384,23 @@ def recreate_item_detail_view(conn) -> None:
     )
 
 
+def ensure_support_user(conn: sqlite3.Connection) -> None:
+    """确保校园客服用户存在，已存在则跳过。"""
+    existing = conn.execute(
+        "SELECT COUNT(*) FROM [User] WHERE nickname = '校园客服'"
+    ).fetchone()[0]
+    if existing:
+        return
+    admin_no = conn.execute("SELECT adminNo FROM Admin LIMIT 1").fetchone()
+    conn.execute(
+        """
+        INSERT INTO [User](studentNo, realName, password, nickname, userType, phone, wechat, authStatus, creditScore, adminNo)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        ("kefu001", "校园客服", hash_password("123456"), "校园客服", "教职工", "", "", "已认证", 100, admin_no[0] if admin_no else None),
+    )
+
+
 def seed_db(conn: sqlite3.Connection) -> None:
     if conn.execute("SELECT COUNT(*) FROM Admin").fetchone()[0] > 0:
         return
@@ -398,6 +416,7 @@ def seed_db(conn: sqlite3.Connection) -> None:
         ("24010002", "李思雨", "123456", "雨天出清", "学生", "13800010002", "lisi_yu", "已认证", 92),
         ("24010003", "王明泽", "123456", "明泽", "校友", "13800010003", "wmz_03", "待审核", 88),
         ("24010004", "陈可", "123456", "可可买书", "教职工", "13800010004", "chenke", "已认证", 76),
+        ("kefu001", "校园客服", "123456", "校园客服", "教职工", "", "", "已认证", 100),
     ]
     for student_no, real_name, password, nickname, user_type, phone, wechat, auth_status, credit in users:
         conn.execute(

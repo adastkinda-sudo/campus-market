@@ -1,6 +1,10 @@
 <template>
   <div class="side-float">
-    <RouterLink class="float-btn" to="/contact" title="联系客服">
+    <button v-if="session.canTrade" class="float-btn" type="button" title="私信客服" @click="openSupportChat">
+      <span class="float-icon">💬</span>
+      <span class="float-text">客服</span>
+    </button>
+    <RouterLink v-else class="float-btn" to="/contact" title="联系客服">
       <span class="float-icon">💬</span>
       <span class="float-text">客服</span>
     </RouterLink>
@@ -17,9 +21,34 @@
 
 <script setup>
 import { onMounted, onUnmounted, ref } from "vue";
-import { RouterLink } from "vue-router";
+import { RouterLink, useRouter } from "vue-router";
+import { searchUsers } from "../api/modules/users.js";
+import { createChat } from "../api/modules/chats.js";
+import { useSessionStore } from "../stores/session.js";
+
+const router = useRouter();
+const session = useSessionStore();
 
 const showTop = ref(false);
+let supportUserNo = null;
+
+async function openSupportChat() {
+  try {
+    if (!supportUserNo) {
+      const data = await searchUsers("校园客服");
+      const support = (data.users || []).find((u) => u.nickname === "校园客服");
+      if (support) supportUserNo = support.userNo;
+    }
+    if (supportUserNo) {
+      const chat = await createChat({ targetUserNo: supportUserNo });
+      await router.push({ path: "/chats", query: { conversation: chat.conversationNo } });
+    } else {
+      await router.push("/chats");
+    }
+  } catch {
+    await router.push("/chats");
+  }
+}
 
 function onScroll() {
   showTop.value = window.scrollY > 300;

@@ -868,6 +868,7 @@ def init_db() -> None:
         ensure_mysql_migrations(conn)
         sqlite_app.core.recreate_item_detail_view(conn)
         sqlite_app.seed_db(conn)
+        sqlite_app.core.ensure_support_user(conn)
         seed_mysql_market_data(conn)
         conn.commit()
     except Exception:
