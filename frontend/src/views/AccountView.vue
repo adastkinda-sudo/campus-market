@@ -28,7 +28,7 @@
 
       <div class="band">
         <div class="section-head"><h2>个人资料</h2></div>
-        <form class="form-grid account-form" @submit.prevent="saveProfile">
+        <form class="form-grid three account-form" @submit.prevent="saveProfile">
           <label>昵称<input v-model="profile.nickname" required /></label>
           <label>性别
             <select v-model="profile.gender">
