@@ -3,7 +3,8 @@
     <header class="topbar">
       <div class="topbar-left">
         <RouterLink v-if="route.path !== '/'" class="back-home" to="/" title="返回首页">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.8 12 3l9 7.8"/><path d="M5 10v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-9"/><path d="M9 21v-6h6v6"/></svg>
+          <span class="back-home-text">平台首页</span>
         </RouterLink>
         <RouterLink class="brand" to="/">
           <img class="brand-logo" src="/assets/liwu-logo.svg" alt="理物" />
@@ -112,14 +113,20 @@ onMounted(async () => {
   text-decoration: none;
 }
 .back-home {
-  display: grid;
-  place-items: center;
-  width: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   height: 34px;
+  padding: 0 12px;
   flex-shrink: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
   transition: all 0.16s ease;
 }
 .back-home:hover { border-color: var(--primary); color: var(--primary); }
@@ -279,7 +286,8 @@ onMounted(async () => {
   .topbar-search { max-width: none; order: 3; width: 100%; }
   .topbar { flex-wrap: wrap; }
   .brand { flex-shrink: 0; }
-  .back-home { width: 30px; height: 30px; }
+  .back-home { height: 30px; padding: 0 9px; }
+  .back-home-text { font-size: 12px; }
 }
 @media (max-width: 620px) {
   .topbar { padding: 12px 14px; }
@@ -290,6 +298,8 @@ onMounted(async () => {
   #nav, .topbar-actions nav { overflow-x: auto; flex-wrap: nowrap; justify-content: flex-start; }
   .topbar-actions { min-width: 0; }
   .nav-btn { white-space: nowrap; }
+  .back-home-text { font-size: 0; }
+  .back-home-text::after { content: "首页"; font-size: 12px; }
 }
 
 .auth-notice {
