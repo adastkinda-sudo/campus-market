@@ -1,17 +1,19 @@
 <template>
   <div class="side-float">
-    <button v-if="session.canTrade" class="float-btn" type="button" title="私信客服" @click="openSupportChat">
-      <span class="float-icon">💬</span>
-      <span class="float-text">客服</span>
-    </button>
-    <RouterLink v-else class="float-btn" to="/contact" title="联系客服">
-      <span class="float-icon">💬</span>
-      <span class="float-text">客服</span>
-    </RouterLink>
-    <RouterLink class="float-btn" to="/contact" title="意见反馈">
-      <span class="float-icon">📝</span>
-      <span class="float-text">反馈</span>
-    </RouterLink>
+    <template v-if="!session.isAdmin">
+      <button v-if="session.canTrade" class="float-btn" type="button" title="私信客服" @click="openSupportChat">
+        <span class="float-icon">💬</span>
+        <span class="float-text">客服</span>
+      </button>
+      <RouterLink v-else class="float-btn" to="/contact" title="联系客服">
+        <span class="float-icon">💬</span>
+        <span class="float-text">客服</span>
+      </RouterLink>
+      <RouterLink class="float-btn" to="/contact" title="意见反馈">
+        <span class="float-icon">📝</span>
+        <span class="float-text">反馈</span>
+      </RouterLink>
+    </template>
     <button v-if="showTop" class="float-btn" type="button" title="回到顶部" @click="scrollToTop">
       <span class="float-icon">⬆</span>
       <span class="float-text">顶部</span>
