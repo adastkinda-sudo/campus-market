@@ -5,15 +5,15 @@
   </section>
   <template v-else>
     <section class="page-header animate-in">
-      <div><h1>后台管理</h1><p class="muted">审核认证、处理反馈、查看用户和运营状态。</p></div>
+      <div><h1>后台管理</h1><p class="muted">审核认证、查看用户和运营状态。</p></div>
       <button class="ghost-btn" type="button" @click="loadAdmin">刷新</button>
     </section>
 
     <section class="stats">
-      <div class="stat"><span class="muted">收藏总数</span><strong>{{ stats.totalFavorites || 0 }}</strong></div>
+      <div class="stat"><span class="muted">物品总数</span><strong>{{ stats.itemCount || 0 }}</strong></div>
+      <div class="stat"><span class="muted">用户总数</span><strong>{{ stats.userCount || 0 }}</strong></div>
+      <div class="stat"><span class="muted">订单总数</span><strong>{{ stats.orderCount || 0 }}</strong></div>
       <div class="stat"><span class="muted">未处理举报</span><strong>{{ stats.unreadReports || 0 }}</strong></div>
-      <div class="stat"><span class="muted">订单状态数</span><strong>{{ stats.orders?.length || 0 }}</strong></div>
-      <div class="stat"><span class="muted">物品状态数</span><strong>{{ stats.items?.length || 0 }}</strong></div>
     </section>
 
     <section class="band">
@@ -34,22 +34,6 @@
     </section>
 
     <section class="band">
-      <div class="section-head"><h2>用户反馈</h2></div>
-      <div class="table-list">
-        <article v-for="item in feedback" :key="item.feedbackNo" class="row-card">
-          <div class="row-main"><strong>{{ item.title }}</strong><span class="pill gold">{{ item.feedbackStatus }}</span></div>
-          <p class="muted">{{ item.userName }} · {{ item.userType }} · {{ item.authStatus }}</p>
-          <p>{{ item.content }}</p>
-          <form class="form-grid one" @submit.prevent="replyFeedback(item)">
-            <label>回复<textarea v-model="feedbackReplies[item.feedbackNo]" :placeholder="item.reply || '输入管理员回复'" required /></label>
-            <button class="btn" type="submit">回复</button>
-          </form>
-        </article>
-        <div v-if="!feedback.length" class="empty">暂无反馈</div>
-      </div>
-    </section>
-
-    <section class="band">
       <div class="section-head"><h2>用户管理</h2></div>
       <div class="table-list">
         <article v-for="user in users" :key="user.userNo" class="row-card">
@@ -65,15 +49,13 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { onMounted, ref } from "vue";
 import { RouterLink } from "vue-router";
 import {
   auditUser as apiAuditUser,
   getAuthRequests,
-  getFeedback,
   getStats,
   getUsers,
-  replyFeedback as apiReplyFeedback,
   setUserStatus as apiSetUserStatus,
 } from "../api/modules/admin.js";
 import { campusCardSrc } from "../api/modules/uploads.js";
@@ -82,38 +64,37 @@ import { useSessionStore } from "../stores/session.js";
 const session = useSessionStore();
 
 const authRequests = ref([]);
-const feedback = ref([]);
 const users = ref([]);
 const stats = ref({});
-const feedbackReplies = reactive({});
+
+function sumBy(rows, field) {
+  return (rows || []).reduce((sum, row) => sum + Number(row[field] || 0), 0);
+}
+
+function normalizeStats(data = {}) {
+  return {
+    itemCount: Number(data.itemCount ?? sumBy(data.items, "statusCount") ?? 0),
+    userCount: Number(data.userCount ?? sumBy(data.userTypes, "userCount") ?? 0),
+    orderCount: Number(data.orderCount ?? sumBy(data.orders, "statusCount") ?? 0),
+    unreadReports: Number(data.unreadReports || 0),
+  };
+}
 
 async function loadAdmin() {
   if (!session.isAdmin) return;
-  const [authReq, fb, userList, statList] = await Promise.all([
+  const [authReq, userList, statList] = await Promise.all([
     getAuthRequests(),
-    getFeedback(),
     getUsers(),
     getStats(),
   ]);
-  authRequests.value = authReq.authRequests || [];
-  feedback.value = fb.feedback || [];
+  authRequests.value = authReq.authRequests || authReq.requests || [];
   users.value = userList.users || [];
-  stats.value = statList;
+  stats.value = normalizeStats(statList);
 }
 
 async function auditUser(userNo, authStatus) {
   try {
     const data = await apiAuditUser(userNo, authStatus);
-    session.notify(data.message);
-    await loadAdmin();
-  } catch (error) {
-    session.notify(error.message, true);
-  }
-}
-
-async function replyFeedback(item) {
-  try {
-    const data = await apiReplyFeedback(item.feedbackNo, feedbackReplies[item.feedbackNo]);
     session.notify(data.message);
     await loadAdmin();
   } catch (error) {

@@ -47,7 +47,10 @@
     <SideFloat />
   </template>
 
-  <RouterView v-else />
+  <template v-else>
+    <section v-if="session.notice" :class="['auth-notice', session.noticeError ? 'error' : '']">{{ session.notice }}</section>
+    <RouterView />
+  </template>
 </template>
 
 <script setup>
@@ -287,5 +290,28 @@ onMounted(async () => {
   #nav, .topbar-actions nav { overflow-x: auto; flex-wrap: nowrap; justify-content: flex-start; }
   .topbar-actions { min-width: 0; }
   .nav-btn { white-space: nowrap; }
+}
+
+.auth-notice {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  z-index: 60;
+  transform: translateX(-50%);
+  width: min(520px, calc(100vw - 32px));
+  padding: 12px 16px;
+  border: 1px solid rgba(13, 148, 136, 0.22);
+  border-radius: var(--radius-md);
+  background: #ecfdf5;
+  color: #065f46;
+  box-shadow: var(--shadow-lg);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+}
+.auth-notice.error {
+  border-color: rgba(239, 68, 68, 0.22);
+  background: #fef2f2;
+  color: #991b1b;
 }
 </style>

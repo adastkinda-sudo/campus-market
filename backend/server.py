@@ -354,6 +354,12 @@ python3 backend/app.py</pre>
             user_type = require_user_type(body.get("userType"))
             phone = optional_text(body, "phone", 30)
             wechat = optional_text(body, "wechat", 50)
+            exists = conn.execute(
+                "SELECT COUNT(*) FROM [User] WHERE studentNo = ?",
+                (student_no,),
+            ).fetchone()[0]
+            if exists:
+                raise HttpError(409, "该学号/工号已注册，请直接登录或换一个账号")
             with conn:
                 conn.execute(
                     """
@@ -1506,7 +1512,8 @@ python3 backend/app.py</pre>
                 ORDER BY registerTime ASC
                 """
             ).fetchall()
-            return {"requests": rows_to_dicts(rows)}
+            auth_requests = rows_to_dicts(rows)
+            return {"authRequests": auth_requests, "requests": auth_requests}
 
         if len(segments) == 4 and segments[1] == "users" and segments[3] == "auth" and method == "POST":
             user_no = int(segments[2])
@@ -1613,31 +1620,11 @@ python3 backend/app.py</pre>
             return {"users": rows_to_dicts(rows)}
 
         if len(segments) == 2 and segments[1] == "stats" and method == "GET":
-            order_rows = conn.execute(
-                "SELECT orderStatus, COUNT(*) AS statusCount FROM OrderSheet GROUP BY orderStatus"
-            ).fetchall()
-            item_rows = conn.execute(
-                "SELECT status, COUNT(*) AS statusCount FROM Item WHERE visible = 1 GROUP BY status"
-            ).fetchall()
-            top_category_rows = conn.execute(
-                """
-                SELECT c.categoryName, COUNT(i.itemNo) AS itemCount
-                FROM Category c
-                LEFT JOIN Item i ON i.categoryNo = c.categoryNo AND i.visible = 1
-                GROUP BY c.categoryNo, c.categoryName
-                ORDER BY itemCount DESC, c.categoryNo ASC
-                """
-            ).fetchall()
-            user_type_rows = conn.execute(
-                "SELECT userType, COUNT(*) AS userCount FROM [User] GROUP BY userType ORDER BY userCount DESC"
-            ).fetchall()
             return {
-                "totalFavorites": conn.execute("SELECT COUNT(*) FROM Favorite").fetchone()[0],
+                "itemCount": conn.execute("SELECT COUNT(*) FROM Item").fetchone()[0],
+                "userCount": conn.execute("SELECT COUNT(*) FROM [User]").fetchone()[0],
+                "orderCount": conn.execute("SELECT COUNT(*) FROM OrderSheet").fetchone()[0],
                 "unreadReports": conn.execute("SELECT COUNT(*) FROM Report WHERE reportStatus = '未处理'").fetchone()[0],
-                "orders": rows_to_dicts(order_rows),
-                "items": rows_to_dicts(item_rows),
-                "topCategories": rows_to_dicts(top_category_rows),
-                "userTypes": rows_to_dicts(user_type_rows),
             }
 
         raise HttpError(404, "后台接口不存在")

@@ -1,5 +1,26 @@
 <template>
-  <section v-if="!session.isUser" class="empty-state animate-in">
+  <template v-if="session.isAdmin">
+    <section class="page-header animate-in">
+      <div><h1>用户反馈</h1><p class="muted">查看用户提交的平台建议、异常问题，并直接回复处理结果。</p></div>
+      <button class="ghost-btn" type="button" @click="loadAdminFeedback">刷新</button>
+    </section>
+    <section class="band animate-in delay-1">
+      <div class="section-head"><h2>反馈处理</h2></div>
+      <div class="table-list">
+        <article v-for="item in adminFeedback" :key="item.feedbackNo" class="row-card">
+          <div class="row-main"><strong>{{ item.title }}</strong><span class="pill gold">{{ item.feedbackStatus }}</span></div>
+          <p class="muted">{{ item.userName }} · {{ item.userType }} · {{ item.authStatus }}</p>
+          <p>{{ item.content }}</p>
+          <form class="form-grid one" @submit.prevent="replyFeedback(item)">
+            <label>管理员回复<textarea v-model="feedbackReplies[item.feedbackNo]" required /></label>
+            <button class="btn" type="submit">{{ item.feedbackStatus === "已回复" ? "更新回复" : "回复用户" }}</button>
+          </form>
+        </article>
+        <div v-if="!adminFeedback.length" class="empty">暂无用户反馈</div>
+      </div>
+    </section>
+  </template>
+  <section v-else-if="!session.isUser" class="empty-state animate-in">
     <strong>登录后可联系管理员</strong>
     <p>登录用户可以提交平台建议和使用反馈。</p>
     <RouterLink class="btn" to="/account">去登录</RouterLink>
@@ -35,6 +56,7 @@
 <script setup>
 import { onMounted, reactive, ref } from "vue";
 import { RouterLink } from "vue-router";
+import { getFeedback as getAdminFeedback, replyFeedback as apiReplyFeedback } from "../api/modules/admin.js";
 import { getMyFeedback, submitFeedback as apiSubmitFeedback } from "../api/modules/contact.js";
 import { useSessionStore } from "../stores/session.js";
 
@@ -42,11 +64,30 @@ const session = useSessionStore();
 
 const form = reactive({ title: "", content: "" });
 const feedback = ref([]);
+const adminFeedback = ref([]);
+const feedbackReplies = reactive({});
+
+async function loadAdminFeedback() {
+  if (!session.isAdmin) return;
+  try {
+    const data = await getAdminFeedback();
+    adminFeedback.value = data.feedback || [];
+    for (const item of adminFeedback.value) {
+      feedbackReplies[item.feedbackNo] = item.reply || "";
+    }
+  } catch (error) {
+    session.notify(error.message, true);
+  }
+}
 
 async function loadFeedback() {
   if (!session.isUser) return;
-  const data = await getMyFeedback();
-  feedback.value = data.feedback || [];
+  try {
+    const data = await getMyFeedback();
+    feedback.value = data.feedback || [];
+  } catch (error) {
+    session.notify(error.message, true);
+  }
 }
 
 async function submitFeedback() {
@@ -60,5 +101,18 @@ async function submitFeedback() {
   }
 }
 
-onMounted(loadFeedback);
+async function replyFeedback(item) {
+  try {
+    const data = await apiReplyFeedback(item.feedbackNo, feedbackReplies[item.feedbackNo]);
+    session.notify(data.message);
+    await loadAdminFeedback();
+  } catch (error) {
+    session.notify(error.message, true);
+  }
+}
+
+onMounted(() => {
+  if (session.isAdmin) loadAdminFeedback();
+  else loadFeedback();
+});
 </script>

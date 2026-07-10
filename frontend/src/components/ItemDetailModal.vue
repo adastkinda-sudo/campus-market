@@ -70,6 +70,7 @@
           </label>
           <button class="btn" type="submit">发布留言</button>
         </form>
+        <div v-else-if="session.isAdmin" class="empty footer-actions">管理员可查看留言，不能以用户身份留言</div>
         <div v-else class="empty footer-actions">登录后可留言</div>
       </section>
     </div>

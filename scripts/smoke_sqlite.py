@@ -11,6 +11,7 @@ BACKEND_DIR = ROOT / "backend"
 sys.path.insert(0, str(BACKEND_DIR))
 
 import core  # noqa: E402
+import server  # noqa: E402
 
 
 EXPECTED_TABLES = {
@@ -158,6 +159,67 @@ def check_order_triggers(conn: sqlite3.Connection) -> None:
     conn.rollback()
 
 
+def check_admin_auth_requests_contract(conn: sqlite3.Connection) -> None:
+    admin = conn.execute("SELECT adminNo FROM Admin ORDER BY adminNo LIMIT 1").fetchone()
+    user = conn.execute(
+        """
+        SELECT userNo
+        FROM User
+        WHERE authStatus <> '待审核'
+        ORDER BY userNo
+        LIMIT 1
+        """
+    ).fetchone()
+    assert_true(admin is not None, "admin demo account was not created")
+    assert_true(user is not None, "no demo user available for auth request contract check")
+
+    with conn:
+        conn.execute(
+            """
+            UPDATE User
+               SET authStatus = '待审核',
+                   campusCardImageUrl = '/uploads/campus-card/smoke.png',
+                   authSubmitTime = ?
+             WHERE userNo = ?
+            """,
+            (core.now_text(), user["userNo"]),
+        )
+
+    token = "smoke-admin-token"
+    core.TOKENS[token] = {"kind": "admin", "id": admin["adminNo"]}
+    handler = object.__new__(server.CampusMarketHandler)
+    handler.headers = {"Authorization": f"Bearer {token}"}
+    try:
+        result = handler.route_admin(conn, "GET", ["admin", "auth-requests"], {})
+    finally:
+        core.TOKENS.pop(token, None)
+
+    assert_true("authRequests" in result, "admin auth request response missing authRequests")
+    assert_true("requests" in result, "admin auth request response missing compatibility requests")
+    assert_true(len(result["authRequests"]) >= 1, "admin auth request response returned no pending users")
+
+
+def check_admin_stats_contract(conn: sqlite3.Connection) -> None:
+    admin = conn.execute("SELECT adminNo FROM Admin ORDER BY adminNo LIMIT 1").fetchone()
+    assert_true(admin is not None, "admin demo account was not created")
+
+    token = "smoke-admin-token"
+    core.TOKENS[token] = {"kind": "admin", "id": admin["adminNo"]}
+    handler = object.__new__(server.CampusMarketHandler)
+    handler.headers = {"Authorization": f"Bearer {token}"}
+    try:
+        result = handler.route_admin(conn, "GET", ["admin", "stats"], {})
+    finally:
+        core.TOKENS.pop(token, None)
+
+    expected_keys = {"itemCount", "userCount", "orderCount", "unreadReports"}
+    missing_keys = expected_keys - result.keys()
+    assert_true(not missing_keys, f"admin stats missing keys: {sorted(missing_keys)}")
+    assert_true("totalFavorites" not in result, "admin stats still exposes favorite total")
+    assert_true("orders" not in result, "admin stats still exposes order status groups")
+    assert_true("items" not in result, "admin stats still exposes item status groups")
+
+
 def main() -> None:
     with tempfile.TemporaryDirectory(prefix="campus-market-smoke-") as tmp_dir:
         temp_dir = Path(tmp_dir)
@@ -169,6 +231,8 @@ def main() -> None:
             check_schema(conn)
             check_seed_data(conn)
             check_order_triggers(conn)
+            check_admin_auth_requests_contract(conn)
+            check_admin_stats_contract(conn)
 
     print("SQLite smoke test passed")
 
