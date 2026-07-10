@@ -185,6 +185,7 @@ const userEntries = computed(() => [
 
 const adminEntries = computed(() => [
   { to: "/admin", label: "后台管理", icon: "⚙️" },
+  { to: "/admin/items", label: "物品管理", icon: "📦" },
   { to: "/contact", label: "用户反馈", icon: "📞" },
 ]);
 

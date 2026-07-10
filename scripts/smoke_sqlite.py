@@ -220,6 +220,51 @@ def check_admin_stats_contract(conn: sqlite3.Connection) -> None:
     assert_true("items" not in result, "admin stats still exposes item status groups")
 
 
+def check_admin_delete_item_contract(conn: sqlite3.Connection) -> None:
+    admin = conn.execute("SELECT adminNo FROM Admin ORDER BY adminNo LIMIT 1").fetchone()
+    item = conn.execute(
+        """
+        SELECT itemNo, sellerNo
+        FROM Item
+        WHERE visible = 1
+        ORDER BY itemNo
+        LIMIT 1
+        """
+    ).fetchone()
+    assert_true(admin is not None, "admin demo account was not created")
+    assert_true(item is not None, "no visible item available for admin delete check")
+
+    token = "smoke-admin-token"
+    core.TOKENS[token] = {"kind": "admin", "id": admin["adminNo"]}
+    handler = object.__new__(server.CampusMarketHandler)
+    handler.headers = {"Authorization": f"Bearer {token}"}
+    try:
+        result = handler.route_items(conn, "DELETE", ["items", str(item["itemNo"])], {}, {})
+    finally:
+        core.TOKENS.pop(token, None)
+
+    assert_true(result["message"] == "物品已逻辑删除", "admin item delete returned unexpected message")
+    deleted = conn.execute(
+        "SELECT visible, status FROM Item WHERE itemNo = ?",
+        (item["itemNo"],),
+    ).fetchone()
+    assert_true(deleted["visible"] == 0, "admin item delete did not hide item")
+    assert_true(deleted["status"] == "已下架", "admin item delete did not shelve item")
+    notification_count = fetch_count(
+        conn,
+        """
+        SELECT COUNT(*)
+        FROM Notification
+        WHERE userNo = ?
+          AND linkType = 'item'
+          AND linkNo = ?
+          AND title = '物品已被平台下架'
+        """,
+        (item["sellerNo"], item["itemNo"]),
+    )
+    assert_true(notification_count >= 1, "admin item delete did not notify seller")
+
+
 def main() -> None:
     with tempfile.TemporaryDirectory(prefix="campus-market-smoke-") as tmp_dir:
         temp_dir = Path(tmp_dir)
@@ -233,6 +278,7 @@ def main() -> None:
             check_order_triggers(conn)
             check_admin_auth_requests_contract(conn)
             check_admin_stats_contract(conn)
+            check_admin_delete_item_contract(conn)
 
     print("SQLite smoke test passed")
 

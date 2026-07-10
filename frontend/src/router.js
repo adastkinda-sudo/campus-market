@@ -13,6 +13,7 @@ import ChatsView from "./views/ChatsView.vue";
 import ContactView from "./views/ContactView.vue";
 import BrowsingHistoryView from "./views/BrowsingHistoryView.vue";
 import AdminView from "./views/AdminView.vue";
+import AdminItemsView from "./views/AdminItemsView.vue";
 
 const router = createRouter({
   history: createWebHistory(),
@@ -31,6 +32,7 @@ const router = createRouter({
     { path: "/contact", name: "contact", component: ContactView },
     { path: "/history", name: "history", component: BrowsingHistoryView, meta: { requiresAuth: true } },
     { path: "/admin", name: "admin", component: AdminView, meta: { requiresAdmin: true } },
+    { path: "/admin/items", name: "admin-items", component: AdminItemsView, meta: { requiresAdmin: true } },
   ],
 });
 

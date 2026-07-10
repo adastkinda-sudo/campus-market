@@ -1119,7 +1119,7 @@ python3 backend/app.py</pre>
         return {"message": "物品状态已更新"}
 
     def delete_item(self, conn: sqlite3.Connection, item_no: int):
-        principal, _ = self.assert_item_owner_or_admin(conn, item_no)
+        principal, item = self.assert_item_owner_or_admin(conn, item_no)
         active_orders = conn.execute(
             "SELECT COUNT(*) FROM OrderSheet WHERE itemNo = ? AND orderStatus IN ('待卖家确认', '待面交')",
             (item_no,),
@@ -1133,6 +1133,15 @@ python3 backend/app.py</pre>
                     (now_text(), item_no),
                 )
             conn.execute("UPDATE Item SET visible = 0, status = '已下架' WHERE itemNo = ?", (item_no,))
+            if principal["kind"] == "admin":
+                create_notification(
+                    conn,
+                    item["sellerNo"],
+                    "物品已被平台下架",
+                    f"你发布的「{item['title']}」已由管理员删除并下架。",
+                    "item",
+                    item_no,
+                )
         return {"message": "物品已逻辑删除"}
 
     def change_favorite(self, conn: sqlite3.Connection, item_no: int, method: str):

@@ -21,6 +21,10 @@ export function updateItemStatus(itemNo, status) {
   return api(`/api/items/${itemNo}/status`, { method: "POST", body: JSON.stringify({ status }) });
 }
 
+export function deleteItem(itemNo) {
+  return api(`/api/items/${itemNo}`, { method: "DELETE" });
+}
+
 export function toggleFavorite(itemNo, isFavorite) {
   const method = isFavorite ? "DELETE" : "POST";
   return api(`/api/items/${itemNo}/favorite`, { method });
