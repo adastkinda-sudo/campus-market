@@ -2,7 +2,7 @@
   <section class="intro-hero animate-in">
     <div class="intro-copy">
       <span class="eyebrow">ECUST C2C Marketplace</span>
-      <h1>让华理闲置<br />重新流动起来</h1>
+      <h1>让闲置好物<br />在华理再次流转</h1>
       <p>面向华东理工大学徐汇校区、奉贤校区学生、教职工与校友的校内交易平台。发布、浏览、求购、下单锁定、线下面交、评价与风控，全流程一站式完成。</p>
       <div class="intro-actions">
         <RouterLink class="btn" to="/items">进入交易市场</RouterLink>
