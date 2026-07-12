@@ -3,6 +3,7 @@ from __future__ import annotations
 import sqlite3
 import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 
@@ -265,6 +266,45 @@ def check_admin_delete_item_contract(conn: sqlite3.Connection) -> None:
     assert_true(notification_count >= 1, "admin item delete did not notify seller")
 
 
+def check_message_local_time_contract(conn: sqlite3.Connection) -> None:
+    item = conn.execute(
+        """
+        SELECT itemNo
+        FROM Item
+        WHERE visible = 1
+        ORDER BY itemNo
+        LIMIT 1
+        """
+    ).fetchone()
+    user = conn.execute("SELECT userNo FROM User ORDER BY userNo LIMIT 1").fetchone()
+    assert_true(item is not None, "no visible item available for message check")
+    assert_true(user is not None, "no demo user available for message check")
+
+    token = "smoke-user-token"
+    core.TOKENS[token] = {"kind": "user", "id": user["userNo"]}
+    handler = object.__new__(server.CampusMarketHandler)
+    handler.headers = {"Authorization": f"Bearer {token}"}
+    before = datetime.now()
+    try:
+        result = handler.create_message(
+            conn,
+            item["itemNo"],
+            {"content": "smoke local-time message"},
+        )
+    finally:
+        core.TOKENS.pop(token, None)
+    after = datetime.now()
+
+    assert_true(result["message"] == "留言已发布", "message creation returned unexpected result")
+    row = conn.execute(
+        "SELECT msgTime FROM Message WHERE content = ? ORDER BY messageNo DESC LIMIT 1",
+        ("smoke local-time message",),
+    ).fetchone()
+    assert_true(row is not None, "created message was not persisted")
+    message_time = datetime.strptime(row["msgTime"], "%Y-%m-%d %H:%M:%S")
+    assert_true(before.replace(microsecond=0) <= message_time <= after, "message time is not local current time")
+
+
 def main() -> None:
     with tempfile.TemporaryDirectory(prefix="campus-market-smoke-") as tmp_dir:
         temp_dir = Path(tmp_dir)
@@ -279,6 +319,7 @@ def main() -> None:
             check_admin_auth_requests_contract(conn)
             check_admin_stats_contract(conn)
             check_admin_delete_item_contract(conn)
+            check_message_local_time_contract(conn)
 
     print("SQLite smoke test passed")
 

@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS Message (
     itemNo INTEGER NOT NULL,
     userNo INTEGER NOT NULL,
     content TEXT NOT NULL,
-    msgTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    msgTime TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     parentMessageNo INTEGER,
     FOREIGN KEY (itemNo) REFERENCES Item(itemNo),
     FOREIGN KEY (userNo) REFERENCES User(userNo),

@@ -1193,8 +1193,11 @@ python3 backend/app.py</pre>
             parent_user_no = parent["userNo"] if parent else None
         with conn:
             conn.execute(
-                "INSERT INTO Message(itemNo, userNo, content, parentMessageNo) VALUES (?, ?, ?, ?)",
-                (item_no, user["userNo"], content, parent_no),
+                """
+                INSERT INTO Message(itemNo, userNo, content, msgTime, parentMessageNo)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (item_no, user["userNo"], content, now_text(), parent_no),
             )
             if item and item["sellerNo"] != user["userNo"]:
                 create_notification(
