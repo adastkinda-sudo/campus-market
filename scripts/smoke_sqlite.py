@@ -305,6 +305,52 @@ def check_message_local_time_contract(conn: sqlite3.Connection) -> None:
     assert_true(before.replace(microsecond=0) <= message_time <= after, "message time is not local current time")
 
 
+def check_private_message_local_time_contract(conn: sqlite3.Connection) -> None:
+    users = conn.execute(
+        """
+        SELECT userNo
+        FROM User
+        WHERE authStatus = '已认证' AND status = '正常'
+        ORDER BY userNo
+        LIMIT 2
+        """
+    ).fetchall()
+    assert_true(len(users) == 2, "not enough verified users for private message check")
+
+    sender_no = users[0]["userNo"]
+    target_no = users[1]["userNo"]
+    token = "smoke-chat-user-token"
+    core.TOKENS[token] = {"kind": "user", "id": sender_no}
+    handler = object.__new__(server.CampusMarketHandler)
+    handler.headers = {"Authorization": f"Bearer {token}"}
+    try:
+        conversation = handler.route_chats(
+            conn,
+            "POST",
+            ["chats"],
+            {"targetUserNo": target_no},
+        )
+        before = datetime.now()
+        result = handler.route_chats(
+            conn,
+            "POST",
+            ["chats", str(conversation["conversationNo"]), "messages"],
+            {"content": "smoke local-time private message"},
+        )
+        after = datetime.now()
+    finally:
+        core.TOKENS.pop(token, None)
+
+    assert_true(result["message"] == "消息已发送", "private message creation returned unexpected result")
+    row = conn.execute(
+        "SELECT sendTime FROM PrivateMessage WHERE content = ? ORDER BY privateMessageNo DESC LIMIT 1",
+        ("smoke local-time private message",),
+    ).fetchone()
+    assert_true(row is not None, "created private message was not persisted")
+    send_time = datetime.strptime(row["sendTime"], "%Y-%m-%d %H:%M:%S")
+    assert_true(before.replace(microsecond=0) <= send_time <= after, "private message time is not local current time")
+
+
 def main() -> None:
     with tempfile.TemporaryDirectory(prefix="campus-market-smoke-") as tmp_dir:
         temp_dir = Path(tmp_dir)
@@ -320,6 +366,7 @@ def main() -> None:
             check_admin_stats_contract(conn)
             check_admin_delete_item_contract(conn)
             check_message_local_time_contract(conn)
+            check_private_message_local_time_contract(conn)
 
     print("SQLite smoke test passed")
 

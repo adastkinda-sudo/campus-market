@@ -165,7 +165,7 @@ CREATE TABLE IF NOT EXISTS PrivateMessage (
     senderNo INTEGER NOT NULL,
     content TEXT NOT NULL,
     isRead INTEGER NOT NULL DEFAULT 0 CHECK (isRead IN (0, 1)),
-    sendTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    sendTime TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (conversationNo) REFERENCES PrivateConversation(conversationNo),
     FOREIGN KEY (senderNo) REFERENCES User(userNo)
 );

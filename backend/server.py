@@ -730,8 +730,11 @@ python3 backend/app.py</pre>
                 content = require_text(body, "content", "私聊内容", 1000)
                 with conn:
                     conn.execute(
-                        "INSERT INTO PrivateMessage(conversationNo, senderNo, content) VALUES (?, ?, ?)",
-                        (conversation_no, user["userNo"], content),
+                        """
+                        INSERT INTO PrivateMessage(conversationNo, senderNo, content, sendTime)
+                        VALUES (?, ?, ?, ?)
+                        """,
+                        (conversation_no, user["userNo"], content, now_text()),
                     )
                     conn.execute(
                         "UPDATE PrivateConversation SET updateTime = ? WHERE conversationNo = ?",
