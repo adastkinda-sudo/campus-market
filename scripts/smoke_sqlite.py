@@ -40,10 +40,32 @@ EXPECTED_VIEWS = {
     "V_Risky_User",
 }
 
+AUTO_TIME_DEFAULTS = {
+    "Admin": "createdTime",
+    "User": "registerTime",
+    "Announcement": "publishTime",
+    "Notification": "createTime",
+    "Item": "publishTime",
+    "Favorite": "createTime",
+    "Wanted": "publishTime",
+    "OrderSheet": "createTime",
+    "Message": "msgTime",
+    "PrivateConversation": "createTime",
+    "PrivateMessage": "sendTime",
+    "Review": "reviewTime",
+    "Report": "createTime",
+    "Feedback": "createTime",
+}
+
 
 def assert_true(condition: bool, message: str) -> None:
     if not condition:
         raise AssertionError(message)
+
+
+def assert_local_current_time(value: str, label: str, before: datetime, after: datetime) -> None:
+    parsed = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+    assert_true(before.replace(microsecond=0) <= parsed <= after, f"{label} is not local current time")
 
 
 def fetch_count(conn: sqlite3.Connection, sql: str, params: tuple = ()) -> int:
@@ -81,11 +103,28 @@ def check_schema(conn: sqlite3.Connection) -> None:
     }
     missing_user_columns = expected_user_columns - user_columns
     assert_true(not missing_user_columns, f"missing user columns: {sorted(missing_user_columns)}")
+    for table_name, column_name in AUTO_TIME_DEFAULTS.items():
+        columns = {
+            row["name"]: row["dflt_value"]
+            for row in conn.execute(f"PRAGMA table_info([{table_name}])").fetchall()
+        }
+        default_value = columns.get(column_name) or ""
+        assert_true("localtime" in default_value, f"{table_name}.{column_name} does not default to local time")
+    trigger_names = {
+        row["name"]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'trigger'").fetchall()
+    }
+    expected_local_time_triggers = {
+        f"trg_{table_name.lower()}_{column_name.lower()}_local_time"
+        for table_name, _, column_name in core.SQLITE_LOCAL_TIME_TRIGGER_COLUMNS
+    }
+    missing_local_time_triggers = expected_local_time_triggers - trigger_names
+    assert_true(not missing_local_time_triggers, f"missing local-time triggers: {sorted(missing_local_time_triggers)}")
 
 
 def check_seed_data(conn: sqlite3.Connection) -> None:
     admin = conn.execute(
-        "SELECT username, password FROM Admin WHERE username = ?",
+        "SELECT username, password, createdTime FROM Admin WHERE username = ?",
         ("admin",),
     ).fetchone()
     assert_true(admin is not None, "admin demo account was not created")
@@ -93,6 +132,8 @@ def check_seed_data(conn: sqlite3.Connection) -> None:
         admin["password"] == core.hash_password("admin123"),
         "admin demo password hash does not match",
     )
+    now = datetime.now()
+    assert_local_current_time(admin["createdTime"], "seed admin time", now.replace(microsecond=0), now)
     assert_true(fetch_count(conn, "SELECT COUNT(*) FROM User") >= 4, "demo users missing")
     assert_true(fetch_count(conn, "SELECT COUNT(*) FROM Item") >= 1, "demo items missing")
     assert_true(
@@ -239,10 +280,12 @@ def check_admin_delete_item_contract(conn: sqlite3.Connection) -> None:
     core.TOKENS[token] = {"kind": "admin", "id": admin["adminNo"]}
     handler = object.__new__(server.CampusMarketHandler)
     handler.headers = {"Authorization": f"Bearer {token}"}
+    before = datetime.now()
     try:
         result = handler.route_items(conn, "DELETE", ["items", str(item["itemNo"])], {}, {})
     finally:
         core.TOKENS.pop(token, None)
+    after = datetime.now()
 
     assert_true(result["message"] == "物品已逻辑删除", "admin item delete returned unexpected message")
     deleted = conn.execute(
@@ -251,19 +294,21 @@ def check_admin_delete_item_contract(conn: sqlite3.Connection) -> None:
     ).fetchone()
     assert_true(deleted["visible"] == 0, "admin item delete did not hide item")
     assert_true(deleted["status"] == "已下架", "admin item delete did not shelve item")
-    notification_count = fetch_count(
-        conn,
+    notification = conn.execute(
         """
-        SELECT COUNT(*)
+        SELECT createTime
         FROM Notification
         WHERE userNo = ?
           AND linkType = 'item'
           AND linkNo = ?
           AND title = '物品已被平台下架'
+        ORDER BY notificationNo DESC
+        LIMIT 1
         """,
         (item["sellerNo"], item["itemNo"]),
-    )
-    assert_true(notification_count >= 1, "admin item delete did not notify seller")
+    ).fetchone()
+    assert_true(notification is not None, "admin item delete did not notify seller")
+    assert_local_current_time(notification["createTime"], "notification time", before, after)
 
 
 def check_message_local_time_contract(conn: sqlite3.Connection) -> None:
@@ -301,8 +346,7 @@ def check_message_local_time_contract(conn: sqlite3.Connection) -> None:
         ("smoke local-time message",),
     ).fetchone()
     assert_true(row is not None, "created message was not persisted")
-    message_time = datetime.strptime(row["msgTime"], "%Y-%m-%d %H:%M:%S")
-    assert_true(before.replace(microsecond=0) <= message_time <= after, "message time is not local current time")
+    assert_local_current_time(row["msgTime"], "message time", before, after)
 
 
 def check_private_message_local_time_contract(conn: sqlite3.Connection) -> None:
@@ -347,11 +391,53 @@ def check_private_message_local_time_contract(conn: sqlite3.Connection) -> None:
         ("smoke local-time private message",),
     ).fetchone()
     assert_true(row is not None, "created private message was not persisted")
-    send_time = datetime.strptime(row["sendTime"], "%Y-%m-%d %H:%M:%S")
-    assert_true(before.replace(microsecond=0) <= send_time <= after, "private message time is not local current time")
+    assert_local_current_time(row["sendTime"], "private message time", before, after)
+
+
+def check_legacy_utc_time_migration() -> None:
+    legacy_time = "2026-07-12 04:00:00"
+    with sqlite3.connect(":memory:") as conn:
+        conn.row_factory = sqlite3.Row
+        conn.executescript(
+            """
+            CREATE TABLE Notification (
+                notificationNo INTEGER PRIMARY KEY,
+                createTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE Message (
+                messageNo INTEGER PRIMARY KEY,
+                msgTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        conn.execute("INSERT INTO Notification(notificationNo, createTime) VALUES (1, ?)", (legacy_time,))
+        conn.execute("INSERT INTO Message(messageNo, msgTime) VALUES (1, ?)", (legacy_time,))
+        expected = conn.execute("SELECT datetime(?, 'localtime')", (legacy_time,)).fetchone()[0]
+
+        core.migrate_sqlite_utc_defaults_to_local_time(conn)
+        notification_time = conn.execute("SELECT createTime FROM Notification WHERE notificationNo = 1").fetchone()[0]
+        message_time = conn.execute("SELECT msgTime FROM Message WHERE messageNo = 1").fetchone()[0]
+        assert_true(notification_time == expected, "legacy notification time was not migrated to local time")
+        assert_true(message_time == expected, "legacy message time was not migrated to local time")
+        assert_true(
+            conn.execute("PRAGMA user_version").fetchone()[0] == core.SQLITE_LOCAL_TIME_MIGRATION_VERSION,
+            "local-time migration version was not recorded",
+        )
+
+        core.migrate_sqlite_utc_defaults_to_local_time(conn)
+        unchanged = conn.execute("SELECT createTime FROM Notification WHERE notificationNo = 1").fetchone()[0]
+        assert_true(unchanged == expected, "local-time migration was applied more than once")
+
+        core.ensure_sqlite_local_time_triggers(conn)
+        before = datetime.now()
+        conn.execute("INSERT INTO Notification(notificationNo) VALUES (2)")
+        after = datetime.now()
+        triggered_time = conn.execute("SELECT createTime FROM Notification WHERE notificationNo = 2").fetchone()[0]
+        assert_local_current_time(triggered_time, "legacy-table trigger time", before, after)
 
 
 def main() -> None:
+    check_legacy_utc_time_migration()
     with tempfile.TemporaryDirectory(prefix="campus-market-smoke-") as tmp_dir:
         temp_dir = Path(tmp_dir)
         core.DATA_DIR = temp_dir

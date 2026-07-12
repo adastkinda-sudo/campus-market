@@ -106,7 +106,15 @@ function money(value) {
 
 function shortTime(value) {
   if (!value) return "";
-  return String(value).replace("T", " ").slice(0, 16);
+  const text = String(value);
+  if (/(?:Z|[+-]\d{2}:\d{2})$/i.test(text)) {
+    const date = new Date(text);
+    if (!Number.isNaN(date.getTime())) {
+      const pad = (part) => String(part).padStart(2, "0");
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+  }
+  return text.replace("T", " ").slice(0, 16);
 }
 
 function truncateText(value, maxLength = 72) {

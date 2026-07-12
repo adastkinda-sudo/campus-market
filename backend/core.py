@@ -22,6 +22,29 @@ GENERIC_PRODUCT_IMAGES = {
     "/assets/kettle.svg",
 }
 DEFAULT_AVATAR_URL = "/assets/default-avatar.svg"
+SQLITE_LOCAL_TIME_MIGRATION_VERSION = 1
+SQLITE_LOCAL_TIME_TRIGGER_COLUMNS = (
+    ("Admin", "adminNo", "createdTime"),
+    ("User", "userNo", "registerTime"),
+    ("Announcement", "announcementNo", "publishTime"),
+    ("Notification", "notificationNo", "createTime"),
+    ("Item", "itemNo", "publishTime"),
+    ("Favorite", "favoriteNo", "createTime"),
+    ("Wanted", "wantedNo", "publishTime"),
+    ("OrderSheet", "orderNo", "createTime"),
+    ("Message", "messageNo", "msgTime"),
+    ("PrivateConversation", "conversationNo", "createTime"),
+    ("PrivateConversation", "conversationNo", "updateTime"),
+    ("PrivateMessage", "privateMessageNo", "sendTime"),
+    ("Review", "reviewNo", "reviewTime"),
+    ("Report", "reportNo", "createTime"),
+    ("Feedback", "feedbackNo", "createTime"),
+)
+SQLITE_UTC_HISTORY_COLUMNS = tuple(
+    (table_name, column_name)
+    for table_name, _, column_name in SQLITE_LOCAL_TIME_TRIGGER_COLUMNS
+    if not (table_name == "PrivateConversation" and column_name == "updateTime")
+)
 CATEGORY_IMAGE_RULES = [
     (("电子阅读器", "kindle", "电纸书"), "/assets/ereader.svg"),
     (("手机平板", "手机", "平板", "iphone", "ipad", "redmi"), "/assets/phone.svg"),
@@ -115,10 +138,10 @@ def create_notification(
         return
     conn.execute(
         """
-        INSERT INTO Notification(userNo, title, content, linkType, linkNo)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO Notification(userNo, title, content, linkType, linkNo, createTime)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
-        (user_no, title, content, link_type, link_no),
+        (user_no, title, content, link_type, link_no, now_text()),
     )
 
 
@@ -274,6 +297,52 @@ def ensure_sqlite_migrations(conn: sqlite3.Connection) -> None:
     apply_user_profile_defaults(conn)
     apply_item_campus_defaults(conn)
     recreate_item_detail_view(conn)
+    ensure_sqlite_local_time_triggers(conn)
+    migrate_sqlite_utc_defaults_to_local_time(conn)
+
+
+def ensure_sqlite_local_time_triggers(conn: sqlite3.Connection) -> None:
+    """Keep old SQLite tables local-time safe without rebuilding them."""
+    for table_name, primary_key, column_name in SQLITE_LOCAL_TIME_TRIGGER_COLUMNS:
+        if not sqlite_table_exists(conn, table_name):
+            continue
+        columns = sqlite_columns(conn, table_name)
+        if primary_key not in columns or column_name not in columns:
+            continue
+        trigger_name = f"trg_{table_name.lower()}_{column_name.lower()}_local_time"
+        conn.execute(
+            f"""
+            CREATE TRIGGER IF NOT EXISTS [{trigger_name}]
+            AFTER INSERT ON [{table_name}]
+            WHEN NEW.[{column_name}] = CURRENT_TIMESTAMP
+            BEGIN
+                UPDATE [{table_name}]
+                   SET [{column_name}] = datetime(NEW.[{column_name}], 'localtime')
+                 WHERE [{primary_key}] = NEW.[{primary_key}];
+            END
+            """
+        )
+
+
+def migrate_sqlite_utc_defaults_to_local_time(conn: sqlite3.Connection) -> None:
+    """One-time conversion for timestamps created by SQLite's UTC defaults."""
+    current_version = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    if current_version >= SQLITE_LOCAL_TIME_MIGRATION_VERSION:
+        return
+
+    for table_name, column_name in SQLITE_UTC_HISTORY_COLUMNS:
+        if not sqlite_table_exists(conn, table_name):
+            continue
+        if column_name not in sqlite_columns(conn, table_name):
+            continue
+        conn.execute(
+            f"""
+            UPDATE [{table_name}]
+               SET [{column_name}] = datetime([{column_name}], 'localtime')
+             WHERE [{column_name}] IS NOT NULL
+            """
+        )
+    conn.execute(f"PRAGMA user_version = {SQLITE_LOCAL_TIME_MIGRATION_VERSION}")
 
 
 def apply_user_profile_defaults(conn) -> None:
@@ -395,10 +464,10 @@ def ensure_support_user(conn: sqlite3.Connection) -> None:
     admin_no = conn.execute("SELECT adminNo FROM Admin LIMIT 1").fetchone()
     conn.execute(
         """
-        INSERT INTO [User](studentNo, realName, password, nickname, userType, phone, wechat, authStatus, creditScore, adminNo)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO [User](studentNo, realName, password, nickname, userType, phone, wechat, authStatus, creditScore, adminNo, registerTime)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
-        ("kefu001", "校园客服", hash_password("123456"), "校园客服", "教职工", "", "", "已认证", 100, admin_no[0] if admin_no else None),
+        ("kefu001", "校园客服", hash_password("123456"), "校园客服", "教职工", "", "", "已认证", 100, admin_no[0] if admin_no else None, now_text()),
     )
 
 
@@ -407,8 +476,8 @@ def seed_db(conn: sqlite3.Connection) -> None:
         return
 
     conn.execute(
-        "INSERT INTO Admin(username, password) VALUES (?, ?)",
-        ("admin", hash_password("admin123")),
+        "INSERT INTO Admin(username, password, createdTime) VALUES (?, ?, ?)",
+        ("admin", hash_password("admin123"), now_text()),
     )
     admin_no = conn.execute("SELECT adminNo FROM Admin WHERE username = 'admin'").fetchone()[0]
 
@@ -422,10 +491,10 @@ def seed_db(conn: sqlite3.Connection) -> None:
     for student_no, real_name, password, nickname, user_type, phone, wechat, auth_status, credit in users:
         conn.execute(
             """
-            INSERT INTO [User](studentNo, realName, password, nickname, userType, phone, wechat, authStatus, creditScore, adminNo)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO [User](studentNo, realName, password, nickname, userType, phone, wechat, authStatus, creditScore, adminNo, registerTime)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (student_no, real_name, hash_password(password), nickname, user_type, phone, wechat, auth_status, credit, admin_no),
+            (student_no, real_name, hash_password(password), nickname, user_type, phone, wechat, auth_status, credit, admin_no, now_text()),
         )
 
     profiles = [
@@ -483,12 +552,12 @@ def seed_db(conn: sqlite3.Connection) -> None:
 
     conn.execute(
         """
-        INSERT INTO Announcement(adminNo, title, content)
+        INSERT INTO Announcement(adminNo, title, content, publishTime)
         VALUES
-        (?, '华东理工大学校园二手交易平台公告', '本平台面向华东理工大学徐汇校区、奉贤校区学生、教职工与校友，支持教材资料、数码设备、宿舍用品、代步工具等校内闲置物品流转。'),
-        (?, '两校区线下面交安全提醒', '下单时只需先确认徐汇校区或奉贤校区，具体地点由买卖双方通过私聊确认；贵重物品建议选择校内公共区域当面验收。')
+        (?, '华东理工大学校园二手交易平台公告', '本平台面向华东理工大学徐汇校区、奉贤校区学生、教职工与校友，支持教材资料、数码设备、宿舍用品、代步工具等校内闲置物品流转。', ?),
+        (?, '两校区线下面交安全提醒', '下单时只需先确认徐汇校区或奉贤校区，具体地点由买卖双方通过私聊确认；贵重物品建议选择校内公共区域当面验收。', ?)
         """,
-        (admin_no, admin_no),
+        (admin_no, now_text(), admin_no, now_text()),
     )
 
     def user_no(student_no: str) -> int:
@@ -634,8 +703,8 @@ def seed_db(conn: sqlite3.Connection) -> None:
             image_url = default_image_for_category_text(f"{title} {category_name}")
         conn.execute(
             """
-            INSERT INTO Item(sellerNo, categoryNo, campusName, title, description, originalPrice, sellPrice, condition, imageUrl)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO Item(sellerNo, categoryNo, campusName, title, description, originalPrice, sellPrice, condition, imageUrl, publishTime)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 user_no(seller_student_no),
@@ -647,24 +716,25 @@ def seed_db(conn: sqlite3.Connection) -> None:
                 sell,
                 condition,
                 image_url,
+                now_text(),
             ),
         )
 
     conn.execute(
         """
-        INSERT INTO Wanted(buyerNo, categoryNo, title, description, expectedPrice)
-        VALUES (?, ?, '求购 Java 或数据库复习资料', '希望是近两年的资料，最好有重点标注。', 35)
+        INSERT INTO Wanted(buyerNo, categoryNo, title, description, expectedPrice, publishTime)
+        VALUES (?, ?, '求购 Java 或数据库复习资料', '希望是近两年的资料，最好有重点标注。', 35, ?)
         """,
-        (user_no("24010002"), category_ids["考试资料"]),
+        (user_no("24010002"), category_ids["考试资料"], now_text()),
     )
 
     first_item = conn.execute("SELECT itemNo FROM Item WHERE title LIKE '数据库系统概论%'").fetchone()[0]
     conn.execute(
-        "INSERT INTO Message(itemNo, userNo, content) VALUES (?, ?, ?)",
-        (first_item, user_no("24010002"), "请问这本书配套习题册还在吗？"),
+        "INSERT INTO Message(itemNo, userNo, content, msgTime) VALUES (?, ?, ?, ?)",
+        (first_item, user_no("24010002"), "请问这本书配套习题册还在吗？", now_text()),
     )
     parent_no = conn.execute("SELECT MAX(messageNo) FROM Message").fetchone()[0]
     conn.execute(
-        "INSERT INTO Message(itemNo, userNo, content, parentMessageNo) VALUES (?, ?, ?, ?)",
-        (first_item, user_no("24010001"), "习题册不在了，只有教材本体。", parent_no),
+        "INSERT INTO Message(itemNo, userNo, content, msgTime, parentMessageNo) VALUES (?, ?, ?, ?, ?)",
+        (first_item, user_no("24010001"), "习题册不在了，只有教材本体。", now_text(), parent_no),
     )

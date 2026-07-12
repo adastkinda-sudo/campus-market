@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS Admin (
     adminNo INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
     password TEXT NOT NULL,
-    createdTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    createdTime TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
 CREATE TABLE IF NOT EXISTS User (
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS User (
         CHECK (authStatus IN ('未认证', '待审核', '已认证', '认证驳回')),
     creditScore INTEGER NOT NULL DEFAULT 100 CHECK (creditScore BETWEEN 0 AND 100),
     status TEXT NOT NULL DEFAULT '正常' CHECK (status IN ('正常', '封禁')),
-    registerTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    registerTime TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     adminNo INTEGER,
     FOREIGN KEY (adminNo) REFERENCES Admin(adminNo)
 );
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS Announcement (
     adminNo INTEGER NOT NULL,
     title TEXT NOT NULL,
     content TEXT NOT NULL,
-    publishTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    publishTime TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (adminNo) REFERENCES Admin(adminNo)
 );
 
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS Notification (
     linkType TEXT,
     linkNo INTEGER,
     isRead INTEGER NOT NULL DEFAULT 0 CHECK (isRead IN (0, 1)),
-    createTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    createTime TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (userNo) REFERENCES User(userNo)
 );
 
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS Item (
     status TEXT NOT NULL DEFAULT '在售'
         CHECK (status IN ('在售', '交易中', '已售出', '已下架')),
     visible INTEGER NOT NULL DEFAULT 1 CHECK (visible IN (0, 1)),
-    publishTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    publishTime TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     CHECK (campusName IN ('徐汇校区', '奉贤校区')),
     FOREIGN KEY (sellerNo) REFERENCES User(userNo),
     FOREIGN KEY (categoryNo) REFERENCES Category(categoryNo)
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS Favorite (
     favoriteNo INTEGER PRIMARY KEY AUTOINCREMENT,
     userNo INTEGER NOT NULL,
     itemNo INTEGER NOT NULL,
-    createTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    createTime TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (userNo) REFERENCES User(userNo),
     FOREIGN KEY (itemNo) REFERENCES Item(itemNo),
     UNIQUE (userNo, itemNo)
@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS Wanted (
     description TEXT NOT NULL,
     expectedPrice REAL CHECK (expectedPrice IS NULL OR expectedPrice >= 0),
     status TEXT NOT NULL DEFAULT '有效' CHECK (status IN ('有效', '已关闭')),
-    publishTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    publishTime TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (buyerNo) REFERENCES User(userNo),
     FOREIGN KEY (categoryNo) REFERENCES Category(categoryNo) ON DELETE SET NULL
 );
@@ -122,7 +122,7 @@ CREATE TABLE IF NOT EXISTS OrderSheet (
     meetTime TEXT NOT NULL,
     orderStatus TEXT NOT NULL DEFAULT '待卖家确认'
         CHECK (orderStatus IN ('待卖家确认', '待面交', '交易成功', '已取消')),
-    createTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    createTime TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     finishTime TEXT,
     FOREIGN KEY (buyerNo) REFERENCES User(userNo),
     FOREIGN KEY (itemNo) REFERENCES Item(itemNo),
@@ -150,8 +150,8 @@ CREATE TABLE IF NOT EXISTS PrivateConversation (
     userOneNo INTEGER NOT NULL,
     userTwoNo INTEGER NOT NULL,
     relatedItemNo INTEGER,
-    createTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updateTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    createTime TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+    updateTime TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     CHECK (userOneNo < userTwoNo),
     FOREIGN KEY (userOneNo) REFERENCES User(userNo),
     FOREIGN KEY (userTwoNo) REFERENCES User(userNo),
@@ -177,7 +177,7 @@ CREATE TABLE IF NOT EXISTS Review (
     revieweeNo INTEGER NOT NULL,
     rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
     content TEXT NOT NULL,
-    reviewTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    reviewTime TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     FOREIGN KEY (orderNo) REFERENCES OrderSheet(orderNo),
     FOREIGN KEY (reviewerNo) REFERENCES User(userNo),
     FOREIGN KEY (revieweeNo) REFERENCES User(userNo),
@@ -193,7 +193,7 @@ CREATE TABLE IF NOT EXISTS Report (
     reportStatus TEXT NOT NULL DEFAULT '未处理' CHECK (reportStatus IN ('未处理', '已处理')),
     handleResult TEXT,
     handleAdminNo INTEGER,
-    createTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    createTime TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     handleTime TEXT,
     FOREIGN KEY (reporterNo) REFERENCES User(userNo),
     FOREIGN KEY (handleAdminNo) REFERENCES Admin(adminNo)
@@ -207,7 +207,7 @@ CREATE TABLE IF NOT EXISTS Feedback (
     reply TEXT,
     feedbackStatus TEXT NOT NULL DEFAULT '待回复'
         CHECK (feedbackStatus IN ('待回复', '已回复', '已关闭')),
-    createTime TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    createTime TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     replyTime TEXT,
     adminNo INTEGER,
     FOREIGN KEY (userNo) REFERENCES User(userNo),

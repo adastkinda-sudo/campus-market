@@ -363,10 +363,10 @@ python3 backend/app.py</pre>
             with conn:
                 conn.execute(
                     """
-                    INSERT INTO [User](studentNo, realName, password, nickname, userType, phone, wechat)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO [User](studentNo, realName, password, nickname, userType, phone, wechat, registerTime)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (student_no, real_name, hash_password(password), nickname, user_type, phone, wechat),
+                    (student_no, real_name, hash_password(password), nickname, user_type, phone, wechat, now_text()),
                 )
             return {"message": "注册成功，请登录后提交校园身份认证"}
 
@@ -673,10 +673,10 @@ python3 backend/app.py</pre>
             with conn:
                 conn.execute(
                     """
-                    INSERT INTO PrivateConversation(userOneNo, userTwoNo, relatedItemNo, updateTime)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO PrivateConversation(userOneNo, userTwoNo, relatedItemNo, createTime, updateTime)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
-                    (user_one, user_two, related_item_no, now_text()),
+                    (user_one, user_two, related_item_no, now_text(), now_text()),
                 )
             row = conn.execute(
                 """
@@ -759,8 +759,8 @@ python3 backend/app.py</pre>
             content = require_text(body, "content", "反馈内容", 1200)
             with conn:
                 conn.execute(
-                    "INSERT INTO Feedback(userNo, title, content) VALUES (?, ?, ?)",
-                    (user["userNo"], title, content),
+                    "INSERT INTO Feedback(userNo, title, content, createTime) VALUES (?, ?, ?, ?)",
+                    (user["userNo"], title, content, now_text()),
                 )
             return {"message": "反馈已提交，管理员会尽快回复"}
 
@@ -917,8 +917,8 @@ python3 backend/app.py</pre>
             content = require_text(body, "content", "公告内容", 1000)
             with conn:
                 conn.execute(
-                    "INSERT INTO Announcement(adminNo, title, content) VALUES (?, ?, ?)",
-                    (admin["adminNo"], title, content),
+                    "INSERT INTO Announcement(adminNo, title, content, publishTime) VALUES (?, ?, ?, ?)",
+                    (admin["adminNo"], title, content, now_text()),
                 )
             return {"message": "公告已发布"}
 
@@ -1020,10 +1020,10 @@ python3 backend/app.py</pre>
         with conn:
             conn.execute(
                 """
-                INSERT INTO Item(sellerNo, categoryNo, campusName, title, description, originalPrice, sellPrice, condition, imageUrl)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO Item(sellerNo, categoryNo, campusName, title, description, originalPrice, sellPrice, condition, imageUrl, publishTime)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (user["userNo"], category_no, campus, title, description, original_price, sell_price, condition, image_url),
+                (user["userNo"], category_no, campus, title, description, original_price, sell_price, condition, image_url, now_text()),
             )
         return {"message": "物品已发布"}
 
@@ -1166,8 +1166,8 @@ python3 backend/app.py</pre>
                 ).fetchone()[0]
                 if not exists:
                     conn.execute(
-                        "INSERT INTO Favorite(userNo, itemNo) VALUES (?, ?)",
-                        (user["userNo"], item_no),
+                        "INSERT INTO Favorite(userNo, itemNo, createTime) VALUES (?, ?, ?)",
+                        (user["userNo"], item_no, now_text()),
                     )
             return {"message": "已加入收藏"}
 
@@ -1243,10 +1243,10 @@ python3 backend/app.py</pre>
                 raise HttpError(400, "交易校区不存在")
             conn.execute(
                 """
-                INSERT INTO OrderSheet(buyerNo, itemNo, locationNo, orderAmount, meetTime)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO OrderSheet(buyerNo, itemNo, locationNo, orderAmount, meetTime, createTime)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (user["userNo"], item_no, location_no, item["sellPrice"], meet_time),
+                (user["userNo"], item_no, location_no, item["sellPrice"], meet_time, now_text()),
             )
             order_no = conn.execute(
                 "SELECT MAX(orderNo) FROM OrderSheet WHERE buyerNo = ? AND itemNo = ?",
@@ -1375,10 +1375,10 @@ python3 backend/app.py</pre>
         with conn:
             conn.execute(
                 """
-                INSERT INTO Review(orderNo, reviewerNo, revieweeNo, rating, content)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO Review(orderNo, reviewerNo, revieweeNo, rating, content, reviewTime)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (order_no, user["userNo"], reviewee_no, rating, content),
+                (order_no, user["userNo"], reviewee_no, rating, content, now_text()),
             )
             create_notification(
                 conn,
@@ -1468,10 +1468,10 @@ python3 backend/app.py</pre>
             with conn:
                 conn.execute(
                     """
-                    INSERT INTO Wanted(buyerNo, categoryNo, title, description, expectedPrice)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO Wanted(buyerNo, categoryNo, title, description, expectedPrice, publishTime)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
-                    (user["userNo"], category_no, title, description, expected_price),
+                    (user["userNo"], category_no, title, description, expected_price, now_text()),
                 )
             return {"message": "求购信息已发布"}
 
@@ -1508,8 +1508,8 @@ python3 backend/app.py</pre>
                 raise HttpError(404, "举报对象不存在")
             with conn:
                 conn.execute(
-                    "INSERT INTO Report(reporterNo, targetType, targetNo, reason) VALUES (?, ?, ?, ?)",
-                    (user["userNo"], target_type, target_no, reason),
+                    "INSERT INTO Report(reporterNo, targetType, targetNo, reason, createTime) VALUES (?, ?, ?, ?, ?)",
+                    (user["userNo"], target_type, target_no, reason, now_text()),
                 )
             return {"message": "举报已提交，等待管理员处理"}
         raise HttpError(404, "举报接口不存在")

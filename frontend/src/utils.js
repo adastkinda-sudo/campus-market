@@ -8,9 +8,21 @@ export function truncateText(text, length = 60) {
   return value.length > length ? `${value.slice(0, length)}...` : value;
 }
 
+function localDateTimeText(date) {
+  const pad = (part) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
 export function shortTime(value) {
   if (!value) return "";
-  return String(value).replace("T", " ").slice(0, 16);
+  const text = String(value);
+  if (/(?:Z|[+-]\d{2}:\d{2})$/i.test(text)) {
+    const date = new Date(text);
+    if (!Number.isNaN(date.getTime())) {
+      return localDateTimeText(date).slice(0, 16);
+    }
+  }
+  return text.replace("T", " ").slice(0, 16);
 }
 
 export function discountPercent(item) {
@@ -74,7 +86,7 @@ export function addBrowsingHistory(item) {
     title: item.title,
     imageUrl: item.imageUrl || defaultImage(item),
     sellPrice: item.sellPrice,
-    viewTime: new Date().toISOString(),
+    viewTime: localDateTimeText(new Date()),
   });
   if (list.length > HISTORY_MAX) list.length = HISTORY_MAX;
   localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
