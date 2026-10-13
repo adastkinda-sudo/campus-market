@@ -324,3 +324,7 @@ The project supports both MySQL and SQLite implementations. MySQL is recommended
 ## Local Files
 
 `.gitignore` excludes local virtual environments, runtime databases, Python caches, editor settings, and local tool state. Database files created while running the project do not need to be committed.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
