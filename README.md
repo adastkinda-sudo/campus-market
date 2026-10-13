@@ -4,6 +4,101 @@
 
 平台采用 Python 后端 + Vue 3 / Vite 前端架构，支持 MySQL 和 SQLite 两种数据库后端。MySQL 版用于正式部署运行，SQLite 版用于本地快速启动和测试。
 
+## 界面预览
+
+以下截图来自前端构建产物与 SQLite 本地演示环境，桌面窗口宽度为 1440 像素。账号资料、商品、订单和私信均为演示数据。
+
+### 平台首页
+
+展示平台介绍、交易入口、校园公告、热门商品和平台统计。
+
+![理物平台首页：平台介绍、校园公告、热门商品和平台统计](docs/screenshots/home.png)
+
+<details>
+<summary>交易市场与商品详情</summary>
+
+### 交易市场
+
+通过关键词、分类、校区和排序浏览物品，查看价格、品相、卖家信用和在售状态。
+
+![交易市场：搜索筛选与商品列表](docs/screenshots/marketplace.png)
+
+### 商品详情
+
+查看商品图片、描述、卖家信息和留言；认证用户可收藏物品、提交订单或私聊卖家。
+
+![商品详情：商品信息、交易操作和留言](docs/screenshots/item-detail.png)
+
+</details>
+
+<details>
+<summary>登录与个人中心</summary>
+
+### 登录
+
+提供登录、注册和密码重置入口。
+
+![登录界面：账号登录、注册和密码重置入口](docs/screenshots/login.png)
+
+### 个人中心
+
+集中查看收藏、订单、私信、通知和浏览记录，编辑个人资料并提交校园身份认证。
+
+![个人中心：功能入口、个人资料和校园身份认证](docs/screenshots/account.png)
+
+</details>
+
+<details>
+<summary>发布管理与求购市场</summary>
+
+### 发布管理
+
+填写物品分类、校区、价格、品相、图片和描述，并查看自己发布的闲置物品。
+
+![发布管理：物品发布表单与我的发布](docs/screenshots/publish.png)
+
+### 求购市场
+
+发布求购需求，浏览需求描述、预期价格和发布者信息。
+
+![求购市场：求购表单与需求列表](docs/screenshots/wanted.png)
+
+</details>
+
+<details>
+<summary>订单与私信</summary>
+
+### 我的订单
+
+区分买入和卖出订单，展示交易金额、面交安排、订单状态及对应操作。
+
+![我的订单：买入、卖出、待确认和待面交的演示订单](docs/screenshots/orders.png)
+
+### 私信
+
+围绕商品与交易对象沟通细节，确认品相、时间和面交地点。
+
+![私信界面：会话列表与演示交易对话](docs/screenshots/chats.png)
+
+</details>
+
+<details>
+<summary>管理后台</summary>
+
+### 后台管理
+
+查看运营统计、审核校园身份认证并管理用户状态。
+
+![管理后台：运营统计、身份认证审核和用户管理](docs/screenshots/admin.png)
+
+### 物品管理
+
+查看平台物品、卖家和交易状态，处理违规或不适合展示的物品。
+
+![后台物品管理：物品列表与管理操作](docs/screenshots/admin-items.png)
+
+</details>
+
 ## 核心结构
 
 ```text
@@ -27,6 +122,7 @@ campus-market/
 ├── scripts/
 │   ├── smoke_sqlite.py       # SQLite 版冒烟测试
 │   └── sync_mysql_to_sqlite.py  # MySQL → SQLite 结构同步脚本
+├── docs/screenshots/         # README 界面截图
 ├── requirements-mysql.txt    # MySQL 版 Python 依赖
 ├── data/                     # SQLite 快速测试生成的本地数据库目录，已被 Git 忽略
 ├── output/                   # 本地产物目录，已被 Git 忽略
